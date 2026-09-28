@@ -1,0 +1,52 @@
+import { useMemo } from 'react';
+import { pickAt } from './core/picking';
+import { EditorStore } from './core/store';
+import { createDemoDoc } from './library/demoScene';
+import { RULER_PX } from './render/rulers';
+import { TransformTool } from './tools/TransformTool';
+import { CanvasView } from './ui/CanvasView';
+import { LeftPanel } from './ui/LeftPanel';
+import { PropertiesPanel } from './ui/PropertiesPanel';
+import { StatusBar } from './ui/StatusBar';
+import { ToolRail } from './ui/ToolRail';
+import { TopBar } from './ui/TopBar';
+import { StoreContext } from './ui/useStore';
+
+// World origin sits at the plan's exterior corner, placed where the design
+// puts it: 118 × 170 px into the drawing area, which starts after the rulers.
+const INITIAL_PAN = { x: RULER_PX + 118, y: RULER_PX + 170 };
+
+export function App() {
+  const store = useMemo(() => {
+    const s = new EditorStore(createDemoDoc());
+    s.viewport = { ...s.viewport, panX: INITIAL_PAN.x, panY: INITIAL_PAN.y };
+    // Open on the design's state: the king bed selected, as if just clicked.
+    s.selection = ['f_0217'];
+    s.setLastHit(pickAt(s.doc, { x: 2.4, y: 6.4 }));
+    return s;
+  }, []);
+  const tool = useMemo(() => new TransformTool(), []);
+
+  const canvasCenter = () => {
+    const el = document.querySelector('main');
+    const r = el?.getBoundingClientRect();
+    return r ? { x: r.width / 2, y: r.height / 2 } : { x: 0, y: 0 };
+  };
+
+  return (
+    <StoreContext.Provider value={store}>
+      <div className="grid h-full min-w-[1200px] grid-rows-[var(--spacing-topbar)_1fr_var(--spacing-statusbar)] text-ink">
+        <TopBar canvasCenter={canvasCenter} />
+        <div className="grid min-h-0 grid-cols-[var(--spacing-rail)_var(--spacing-left)_1fr_var(--spacing-right)]">
+          <ToolRail active={tool.id} />
+          <LeftPanel />
+          <main className="relative min-w-0 overflow-hidden bg-canvas">
+            <CanvasView tool={tool} />
+          </main>
+          <PropertiesPanel />
+        </div>
+        <StatusBar />
+      </div>
+    </StoreContext.Provider>
+  );
+}

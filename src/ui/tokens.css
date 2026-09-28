@@ -1,0 +1,43 @@
+/*
+ * Design tokens from Figma file 5t0O5yYDTlxuXsnjGYFRWO,
+ * page "02 · Planwise — Floor Plan Editor", frame 06 (node 13:288).
+ * Single source for UI (via Tailwind @theme) and canvas (via render/theme.ts).
+ */
+:root {
+  /* Surfaces */
+  --pw-app: #f4f1ea;
+  --pw-surface: #ffffff;
+  --pw-surface-sunken: #f8f6f0; /* inputs, button groups, rulers */
+  --pw-canvas: #fbfaf6;
+  --pw-border: #e2dccf;
+
+  /* Ink */
+  --pw-ink: #1b2a41;
+  --pw-ink-muted: #75706a;
+  --pw-ink-faint: #b3ada3;
+
+  /* Accents */
+  --pw-accent: #2f5da8; /* selection, primary button, focused field */
+  --pw-accent-soft: rgba(47, 93, 168, 0.1);
+  --pw-accent-tint: rgba(47, 93, 168, 0.08);
+  --pw-tool: #d9623b; /* active tool, tabs, live measurements */
+  --pw-tool-soft: rgba(217, 98, 59, 0.12);
+  --pw-tool-border: rgba(217, 98, 59, 0.5);
+  --pw-success: #6e9b7b; /* toggles on, saved, fps ok */
+  --pw-warning: #e0a526;
+
+  /* Canvas */
+  --pw-grid-minor: #e4e9f1;
+  --pw-grid-major: #c9d5e6;
+
+  /* Type */
+  --pw-font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --pw-font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Layout (1440 × 900 frame) */
+  --pw-topbar-h: 52px;
+  --pw-rail-w: 48px;
+  --pw-left-w: 260px;
+  --pw-right-w: 276px;
+  --pw-statusbar-h: 28px;
+}
