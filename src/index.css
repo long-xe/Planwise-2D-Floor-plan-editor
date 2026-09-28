@@ -18,8 +18,11 @@
   --color-tool: var(--pw-tool);
   --color-tool-soft: var(--pw-tool-soft);
   --color-tool-border: var(--pw-tool-border);
+  --color-tool-region: var(--pw-tool-region);
   --color-success: var(--pw-success);
   --color-warning: var(--pw-warning);
+
+  --shadow-float: var(--pw-shadow-float);
 
   --font-sans: var(--pw-font-sans);
   --font-mono: var(--pw-font-mono);

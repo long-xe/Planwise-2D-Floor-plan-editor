@@ -79,6 +79,10 @@ function drawWall(g: CanvasRenderingContext2D, w: Wall, v: Viewport, theme: Canv
   g.fill();
 }
 
+// Hoisted so the per-object draw doesn't allocate.
+const RUG_DASH = [4, 3];
+const NO_DASH: number[] = [];
+
 /** Draws in the object's local frame via the context transform: no per-point allocations. */
 function drawFurniture(g: CanvasRenderingContext2D, f: Furniture, v: Viewport, dpr: number): void {
   const s = scaleOf(v);
@@ -107,6 +111,8 @@ function drawFurniture(g: CanvasRenderingContext2D, f: Furniture, v: Viewport, d
   g.globalAlpha = alpha;
   g.strokeStyle = a.stroke;
   g.lineWidth = a.strokeWidth;
+  if (a.dashed) g.setLineDash(RUG_DASH);
   g.stroke();
+  if (a.dashed) g.setLineDash(NO_DASH);
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
 }

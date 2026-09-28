@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import type { Furniture, Layer } from '../core/document';
+import { findGroup } from '../core/document';
+import { expandGroups } from '../core/selection';
 import { aabbOf } from '../geometry/transform';
 import { Icon } from './Icon';
 import { useEditor } from './useStore';
@@ -16,8 +18,15 @@ import sofaSmall from './icons/sofa-small.svg';
 import desk from './icons/desk.svg';
 import bedSmall from './icons/bed-small.svg';
 import bath from './icons/bath.svg';
+import deskAccent from './icons/desk-accent.svg';
+import bedAccent from './icons/bed-accent.svg';
+import sofaAccent from './icons/sofa-accent.svg';
+import bathAccent from './icons/bath-accent.svg';
 
 const MAX_CHILDREN = 12;
+
+/** Highlighted rows tint the icon accent (design 06/07 selected rows). */
+const ACCENT_ICON: Record<Furniture['icon'], string> = { desk: deskAccent, bed: bedAccent, sofa: sofaAccent, bath: bathAccent };
 
 export const ITEM_ICON: Record<Furniture['icon'], { src: string; w: number; h: number }> = {
   sofa: { src: sofaSmall, w: 12.8, h: 8 },
@@ -67,7 +76,7 @@ export function LeftPanel() {
           />
         ))}
       </div>
-      <HitTestCard />
+      {store.units.length > 1 ? <ShortcutsCard /> : <HitTestCard />}
     </aside>
   );
 }
@@ -75,8 +84,8 @@ export function LeftPanel() {
 function LayerRow({ layer, expanded, onToggle }: { layer: Layer; expanded: boolean; onToggle(): void }) {
   const store = useEditor();
   const objects = store.doc.objects.filter((o) => o.layerId === layer.id);
-  const furniture = objects.filter((o): o is Furniture => o.kind === 'furniture');
-  const shown = furniture.slice(0, MAX_CHILDREN);
+  const rows = objectRows(objects.filter((o): o is Furniture => o.kind === 'furniture'));
+  const shown = rows.slice(0, MAX_CHILDREN);
 
   return (
     <>
@@ -94,9 +103,9 @@ function LayerRow({ layer, expanded, onToggle }: { layer: Layer; expanded: boole
       {expanded && (
         // Design leaves 1px above the child list and 3px below it.
         <div className="pt-px pb-[3px]">
-          {shown.map((f) => <ObjectRow key={f.id} item={f} />)}
-          {furniture.length > MAX_CHILDREN && (
-            <p className="h-[30px] pt-[6px] pl-[66px] text-11 text-muted">+ {furniture.length - MAX_CHILDREN} more</p>
+          {shown.map((r) => <ObjectRow key={r.id} row={r} />)}
+          {rows.length > MAX_CHILDREN && (
+            <p className="h-[30px] pt-[6px] pl-[66px] text-11 text-muted">+ {rows.length - MAX_CHILDREN} more</p>
           )}
         </div>
       )}
@@ -104,21 +113,53 @@ function LayerRow({ layer, expanded, onToggle }: { layer: Layer; expanded: boole
   );
 }
 
-function ObjectRow({ item }: { item: Furniture }) {
+interface ObjectRowData {
+  /** Row key: the object id, or the group id for a group row. */
+  id: string;
+  name: string;
+  icon: Furniture['icon'];
+  /** A member id; selecting it selects the whole group. */
+  pick: string;
+}
+
+/**
+ * Topmost first, like the Layers list itself; a group collapses into one
+ * row at the position of its topmost member (design: "Dining set · 6").
+ */
+function objectRows(items: Furniture[]): ObjectRowData[] {
+  const rows: ObjectRowData[] = [];
+  const seen = new Set<string>();
+  for (let i = items.length - 1; i >= 0; i--) {
+    const f = items[i]!;
+    const key = f.groupId ?? f.id;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push({ id: key, name: f.name, icon: f.icon, pick: f.id });
+  }
+  return rows;
+}
+
+function ObjectRow({ row }: { row: ObjectRowData }) {
   const store = useEditor();
-  const selected = store.selection.includes(item.id);
-  const icon = ITEM_ICON[item.icon];
+  const members = expandGroups(store.doc, [row.pick]);
+  const selected = members.every((id) => store.selection.includes(id));
+  const icon = ITEM_ICON[row.icon];
+  const name = members.length > 1 ? (findGroup(store.doc, row.id)?.name ?? row.name) : row.name;
+  const onClick = (shift: boolean) => {
+    if (!shift) return store.select(members);
+    store.select(selected ? store.selection.filter((id) => !members.includes(id)) : [...store.selection, ...members]);
+  };
   return (
     <button
       type="button"
-      onClick={() => store.select([item.id])}
+      onClick={(e) => onClick(e.shiftKey)}
       className={`relative mx-1 flex h-[30px] w-[252px] items-center rounded-[3px] pr-[19px] pl-[41.6px] text-left ${
         selected ? 'bg-accent-tint' : 'hover:bg-sunken'
       }`}
     >
       {selected && <span className="absolute inset-y-0 left-0 w-[2px] bg-accent" />}
-      <Icon src={icon.src} w={icon.w} h={icon.h} />
-      <span className={`ml-2 flex-1 text-12 ${selected ? 'font-medium text-accent' : 'text-ink'}`}>{item.name}</span>
+      <Icon src={selected ? ACCENT_ICON[row.icon] : icon.src} w={icon.w} h={icon.h} />
+      <span className={`ml-2 flex-1 text-12 ${selected ? 'font-medium text-accent' : 'text-ink'}`}>{name}</span>
       <Icon src={eyeMuted} w={13.6} h={6.375} />
       <Icon src={unlockMuted} w={8.5} h={11.4} className="ml-[15px]" />
     </button>
@@ -134,7 +175,7 @@ function HitTestCard() {
     <div className="m-4 h-[60px] shrink-0 rounded-[4px] border border-line bg-sunken px-3 pt-[9px]">
       <p className="font-mono text-9 font-medium uppercase tracking-label-sm text-muted">Hit test</p>
       <p className="mt-[6px] font-mono text-10 text-ink">
-        {hit ? `polygon · ${hit.points} pts · ${hit.ms.toFixed(2)} ms` : 'no hit'}
+        {hit?.id ? `${hit.mode === 'bbox' ? 'bbox' : 'polygon'} · ${hit.points} pts · ${hit.ms.toFixed(2)} ms` : 'no hit'}
       </p>
       <p className="mt-[2px] font-mono text-10 text-muted">
         {box && sel
@@ -143,6 +184,17 @@ function HitTestCard() {
             }`
           : '—'}
       </p>
+    </div>
+  );
+}
+
+/** Shown while several objects are selected (design 07). */
+function ShortcutsCard() {
+  return (
+    <div className="m-4 h-[70px] shrink-0 rounded-[4px] border border-line bg-sunken px-3 pt-[9px]">
+      <p className="font-mono text-9 font-medium uppercase tracking-label-sm text-muted">Shortcuts</p>
+      <p className="mt-[6px] font-mono text-10 whitespace-pre text-muted">{'Shift+click  add / remove'}</p>
+      <p className="mt-[3px] font-mono text-10 whitespace-pre text-muted">{'Alt+drag     contain mode'}</p>
     </div>
   );
 }

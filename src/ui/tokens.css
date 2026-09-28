@@ -23,6 +23,8 @@
   --pw-tool: #d9623b; /* active tool, tabs, live measurements */
   --pw-tool-soft: rgba(217, 98, 59, 0.12);
   --pw-tool-border: rgba(217, 98, 59, 0.5);
+  --pw-tool-region: rgba(217, 98, 59, 0.15); /* legend: polygon hit region */
+  --pw-shadow-float: 0 4px 14px rgba(0, 0, 0, 0.08); /* floating canvas cards */
   --pw-success: #6e9b7b; /* toggles on, saved, fps ok */
   --pw-warning: #e0a526;
 

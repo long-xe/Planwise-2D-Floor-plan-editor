@@ -2,24 +2,34 @@ import type { Doc, Furniture } from '../core/document';
 import type { EditorStore } from '../core/store';
 import { type Viewport, scaleOf, worldToScreen } from '../core/viewport';
 import { HANDLES, aabbOf, cornersOf, handlePosition } from '../geometry/transform';
-import type { Vec2 } from '../geometry/vec';
-import { rotateKnobPosition } from '../tools/TransformTool';
+import type { Rect, Vec2 } from '../geometry/vec';
+import { rotateKnobPosition, selectionFrame } from '../tools/TransformTool';
+import { drawBroadphase, drawHitRegions } from './hitDebug';
+import { drawMarquee, drawMultiSelection } from './multiSelection';
+import { pill } from './pill';
 import type { CanvasTheme } from './theme';
 
 const HANDLE = 6.75;
 const KNOB_R = 4.375;
 
 /** Selection chrome and live measurements; drawn above content, never cached. */
-export function drawOverlay(g: CanvasRenderingContext2D, store: EditorStore, theme: CanvasTheme): void {
+export function drawOverlay(g: CanvasRenderingContext2D, store: EditorStore, view: Rect, theme: CanvasTheme): void {
   const v = store.viewport;
-  const sel = store.selectedFurniture;
-  for (const f of sel) drawSelection(g, store, f, theme, sel.length === 1);
+  if (store.hit.showBroadphase) drawBroadphase(g, store, view, theme);
 
-  if (sel.length === 1) {
-    const f = sel[0]!;
+  const frame = selectionFrame(store);
+  if (frame?.kind === 'single') {
+    const f = frame.f;
+    drawSelection(g, store, f, theme, true);
     if (!store.stack.pending || store.feedback.resizing) drawWallDistances(g, store.doc, f, v, theme);
     drawSizeLabel(g, f, v, theme);
+  } else if (frame) {
+    drawMultiSelection(g, store, frame.box, frame.padded, theme);
   }
+  const mq = store.feedback.marquee;
+  if (mq) drawMarquee(g, store, mq.rect, theme);
+  // Hover debugging only while idle: during a drag the report is stale.
+  if (store.hit.showRegions && store.hover && !store.stack.pending) drawHitRegions(g, store, store.hover, theme);
   drawGuides(g, store, theme);
   const rl = store.feedback.rotateLabel;
   if (rl) {
@@ -144,24 +154,6 @@ function drawGuides(g: CanvasRenderingContext2D, store: EditorStore, theme: Canv
   g.strokeStyle = theme.tool;
   g.lineWidth = 1;
   g.stroke();
-}
-
-/** Label chip: 10 px mono, 6/3 px padding, 3 px radius (design Button/* chips). */
-function pill(
-  g: CanvasRenderingContext2D, text: string, x: number, y: number, bg: string, theme: CanvasTheme, centered = false,
-): void {
-  g.font = `500 10px ${theme.fontMono}`;
-  const w = Math.ceil(g.measureText(text).width) + 12;
-  const h = 19;
-  const left = centered ? x - w / 2 : x;
-  const top = centered ? y - h / 2 : y;
-  g.beginPath();
-  g.roundRect(left, top, w, h, 3);
-  g.fillStyle = bg;
-  g.fill();
-  g.fillStyle = theme.surface;
-  g.textBaseline = 'middle';
-  g.fillText(text, left + 6, top + h / 2 + 0.5);
 }
 
 /** North arrow (top-right) and scale bar (bottom-right) in screen space. */

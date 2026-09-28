@@ -24,6 +24,8 @@ export interface Appearance {
    * which is why it is the one pixel value allowed in the document.
    */
   strokeWidth: number;
+  /** Dashed outline for soft furnishings (rugs) that sit under other pieces. */
+  dashed?: boolean;
 }
 
 export interface Furniture {
@@ -37,6 +39,13 @@ export interface Furniture {
   /** Footprint polygon in unit space (-0.5..0.5), scaled by w/h. */
   footprint: Vec2[];
   appearance: Appearance;
+  /** Members of a group select, align and move as one unit (⌘G). */
+  groupId?: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
 }
 
 /** Straight wall between two centreline points. Full wall tooling lands with screen 04. */
@@ -54,6 +63,7 @@ export type SceneObject = Furniture | Wall;
 export interface Doc {
   name: string;
   layers: Layer[];
+  groups: Group[];
   /** Paint order: later entries draw on top and win hit tests. */
   objects: SceneObject[];
 }
@@ -65,6 +75,10 @@ export function findObject(doc: Doc, id: string): SceneObject | undefined {
 export function findFurniture(doc: Doc, id: string): Furniture | undefined {
   const o = findObject(doc, id);
   return o?.kind === 'furniture' ? o : undefined;
+}
+
+export function findGroup(doc: Doc, id: string): Group | undefined {
+  return doc.groups.find((g) => g.id === id);
 }
 
 export function findLayer(doc: Doc, id: string): Layer | undefined {

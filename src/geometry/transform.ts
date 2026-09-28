@@ -108,6 +108,28 @@ export function rotateTransform(start: Transform, pivot: Vec2, deltaDeg: number)
   return { ...start, x: c.x, y: c.y, rotation: normalizeRotation(start.rotation + deltaDeg) };
 }
 
+/**
+ * Re-fits an object when its selection box `from` is stretched to `to`
+ * (group resize, Selection bounds W/H). The centre maps exactly; each local
+ * axis is scaled by how much the stretch lengthens it, which is exact for
+ * 0/90/180/270° and a close, shear-free approximation otherwise.
+ */
+export function mapTransformBox(t: Transform, from: Rect, to: Rect): Transform {
+  const fw = from.maxX - from.minX || 1;
+  const fh = from.maxY - from.minY || 1;
+  const sx = (to.maxX - to.minX) / fw;
+  const sy = (to.maxY - to.minY) / fh;
+  const c = Math.cos((t.rotation * Math.PI) / 180);
+  const s = Math.sin((t.rotation * Math.PI) / 180);
+  return {
+    ...t,
+    x: to.minX + (t.x - from.minX) * sx,
+    y: to.minY + (t.y - from.minY) * sy,
+    w: Math.max(MIN_SIZE, t.w * Math.hypot(sx * c, sy * s)),
+    h: Math.max(MIN_SIZE, t.h * Math.hypot(sx * s, sy * c)),
+  };
+}
+
 /** Keeps stored rotation in [0, 360) so the R field reads naturally. */
 export function normalizeRotation(deg: number): number {
   const r = deg % 360;

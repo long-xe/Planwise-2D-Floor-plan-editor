@@ -96,7 +96,7 @@ export class RenderLoop {
     };
     if (findLayer(store.doc, 'grid')?.visible) base(() => drawGrid(g, v, view, theme));
     base(() => drawScene(g, store.doc, v, view, theme, this.dpr, this.counters));
-    base(() => drawOverlay(g, store, theme));
+    base(() => drawOverlay(g, store, view, theme));
     base(() => drawSheetMarks(g, v, w, h, theme));
     base(() => drawRulers(g, v, w, h, theme));
   }

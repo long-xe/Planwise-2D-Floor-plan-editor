@@ -3,8 +3,9 @@ import { pickAt } from './core/picking';
 import { EditorStore } from './core/store';
 import { createDemoDoc } from './library/demoScene';
 import { RULER_PX } from './render/rulers';
-import { TransformTool } from './tools/TransformTool';
+import { SelectTool } from './tools/SelectTool';
 import { CanvasView } from './ui/CanvasView';
+import { HitDebugPanel } from './ui/HitDebugPanel';
 import { LeftPanel } from './ui/LeftPanel';
 import { PropertiesPanel } from './ui/PropertiesPanel';
 import { StatusBar } from './ui/StatusBar';
@@ -22,10 +23,10 @@ export function App() {
     s.viewport = { ...s.viewport, panX: INITIAL_PAN.x, panY: INITIAL_PAN.y };
     // Open on the design's state: the king bed selected, as if just clicked.
     s.selection = ['f_0217'];
-    s.setLastHit(pickAt(s.doc, { x: 2.4, y: 6.4 }));
+    s.lastHit = pickAt(s.hitIndex, { x: 2.4, y: 6.4 });
     return s;
   }, []);
-  const tool = useMemo(() => new TransformTool(), []);
+  const tool = useMemo(() => new SelectTool(), []);
 
   const canvasCenter = () => {
     const el = document.querySelector('main');
@@ -42,6 +43,7 @@ export function App() {
           <LeftPanel />
           <main className="relative min-w-0 overflow-hidden bg-canvas">
             <CanvasView tool={tool} />
+            <HitDebugPanel />
           </main>
           <PropertiesPanel />
         </div>

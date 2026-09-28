@@ -80,6 +80,16 @@ export function CanvasView({ tool }: { tool: Tool }) {
         else store.undo();
         return;
       }
+      if (mod && e.key.toLowerCase() === 'g') {
+        e.preventDefault();
+        store.group();
+        return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        store.deleteSelection();
+        return;
+      }
       if (e.code === 'Space' && !spaceDown) {
         spaceDown = true;
         canvas.style.cursor = 'grab';

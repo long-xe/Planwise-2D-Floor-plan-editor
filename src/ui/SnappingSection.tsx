@@ -1,5 +1,5 @@
 import type { AngleStep } from '../core/snapping';
-import { Section, Toggle } from './controls';
+import { Section, Segmented, Toggle } from './controls';
 import { Icon } from './Icon';
 import { useEditor } from './useStore';
 import knob from './icons/slider-knob.svg';
@@ -33,23 +33,14 @@ export function SnappingSection() {
       </div>
 
       <p className="mt-[18px] text-12 text-ink">Angle snap</p>
-      <div role="radiogroup" aria-label="Angle snap" className="mt-2 flex h-7 rounded-[3px] border border-line bg-sunken p-[1px]">
-        {ANGLES.map((a) => (
-          <button
-            key={a}
-            type="button"
-            role="radio"
-            aria-checked={s.angleStep === a}
-            onClick={() => store.setSnap({ angleStep: a })}
-            // Every segment carries a border (transparent when idle) so flex-1
-            // keeps all four at 60px; only the active one shows it.
-            className={`flex-1 rounded-[2px] border font-mono text-11 ${
-              s.angleStep === a ? 'border-accent bg-surface font-medium text-accent' : 'border-transparent text-muted'
-            }`}
-          >
-            {a}°
-          </button>
-        ))}
+      <div className="mt-2">
+        <Segmented
+          label="Angle snap"
+          options={ANGLES.map((a) => ({ value: a, label: `${a}°` }))}
+          value={s.angleStep}
+          font="font-mono"
+          onChange={(angleStep) => store.setSnap({ angleStep })}
+        />
       </div>
 
       <div className="mt-4 flex items-center justify-between">

@@ -1,6 +1,8 @@
 import type { Furniture } from '../core/document';
 import { normalizeRotation } from '../geometry/transform';
 import { AppearanceSection } from './AppearanceSection';
+import { HitDetectionSection } from './HitDetectionSection';
+import { AlignSection, MultiSelectionHeader, SelectionBoundsSection } from './MultiSelectionPanel';
 import { IconButton, NumberField, Section } from './controls';
 import { Icon } from './Icon';
 import { ITEM_ICON, Tabs } from './LeftPanel';
@@ -22,11 +24,24 @@ export function PropertiesPanel() {
     // at +16), so use an inset shadow rather than a border that takes up width.
     <aside className="flex min-h-0 flex-col overflow-y-auto bg-surface shadow-[inset_1px_0_0_var(--pw-border)]">
       <Tabs tabs={['Properties', 'Document']} active="Properties" />
-      {f ? <ObjectHeader f={f} /> : <EmptyHeader count={sel.length} />}
-      {f && <TransformSection f={f} />}
-      <SnappingSection />
-      {f && <AppearanceSection f={f} />}
-      <CommandSection />
+      {sel.length > 1 ? (
+        // Multi-selection / group (design 07).
+        <>
+          <MultiSelectionHeader />
+          <AlignSection />
+          <SelectionBoundsSection />
+          <HitDetectionSection />
+        </>
+      ) : (
+        <>
+          {f ? <ObjectHeader f={f} /> : <EmptyHeader />}
+          {f && <TransformSection f={f} />}
+          <SnappingSection />
+          {f && <AppearanceSection f={f} />}
+          {!f && <HitDetectionSection />}
+          <CommandSection />
+        </>
+      )}
     </aside>
   );
 }
@@ -52,10 +67,10 @@ function ObjectHeader({ f }: { f: Furniture }) {
   );
 }
 
-function EmptyHeader({ count }: { count: number }) {
+function EmptyHeader() {
   return (
     <div className="flex h-16 shrink-0 items-center border-b border-line px-4 text-12 text-muted">
-      {count > 1 ? `${count} objects selected` : 'Nothing selected — click an object on the canvas'}
+      Nothing selected — click or drag a marquee on the canvas
     </div>
   );
 }
