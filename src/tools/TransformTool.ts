@@ -1,68 +1,42 @@
 import type { Transaction } from '../core/commandStack';
-import { TransformCommand, type TransformTarget } from '../core/commands';
+import { type Command, TransformCommand, type TransformTarget } from '../core/commands';
+import { BatchCommand } from '../core/structureCommands';
+import { movedWallBounds, structureMoveCommand, type StructureStarts, structureStarts } from './structureMove';
 import type { Furniture } from '../core/document';
-import { pickableFurniture } from '../core/picking';
-import { unitsBounds } from '../core/selection';
+import { findLayer } from '../core/document';
 import { snapAngle, snapBox } from '../core/snapping';
 import type { EditorStore } from '../core/store';
 import { screenLengthToWorld, worldToScreen } from '../core/viewport';
 import { distance } from '../geometry/hitTest';
 import {
-  type Handle, type Transform, HANDLES, aabbOf, handlePosition, localToWorld,
-  mapTransformBox, resizeFromHandle, rotateTransform,
+  type Handle,
+  type Transform,
+  HANDLES,
+  aabbOf,
+  handlePosition,
+  mapTransformBox,
+  resizeFromHandle,
+  rotateTransform,
 } from '../geometry/transform';
 import { type Rect, type Vec2, angleDeg, boundsOf, rectCenter, unionRect } from '../geometry/vec';
+import { frameTransform, handleCursor, rectAsTransform, rotateKnobPosition, selectionFrame } from './selectionFrame';
 import type { Tool, ToolContext, ToolPointerEvent } from './Tool';
 
-/** Screen distance from the top edge to the rotation knob (design: 29 px). */
-export const ROTATE_KNOB_OFFSET_PX = 29;
-/** Multi-selection box sits this far outside the union of the pieces (design 07). */
-export const GROUP_BOX_PAD_PX = 6;
 const HANDLE_HIT_PX = 7;
-
-/** What the handles are attached to: one object's rotated box, or the selection's bounds. */
-export type SelectionFrame =
-  | { kind: 'single'; f: Furniture }
-  | { kind: 'multi'; box: Rect; padded: Rect };
-
-export function selectionFrame(store: EditorStore): SelectionFrame | null {
-  const sel = store.selectedFurniture;
-  if (!sel.length) return null;
-  if (sel.length === 1) return { kind: 'single', f: sel[0]! };
-  const box = unitsBounds(store.units)!;
-  const pad = screenLengthToWorld(store.viewport, GROUP_BOX_PAD_PX);
-  return { kind: 'multi', box, padded: { minX: box.minX - pad, minY: box.minY - pad, maxX: box.maxX + pad, maxY: box.maxY + pad } };
-}
-
-export function rectAsTransform(r: Rect): Transform {
-  return { x: (r.minX + r.maxX) / 2, y: (r.minY + r.maxY) / 2, w: r.maxX - r.minX, h: r.maxY - r.minY, rotation: 0, flipX: false };
-}
-
-/** The transform the handles follow, in world units. */
-export function frameTransform(frame: SelectionFrame): Transform {
-  return frame.kind === 'single' ? frame.f.transform : rectAsTransform(frame.padded);
-}
-
-/** Where the rotation knob sits for a frame transform, in world units. */
-export function rotateKnobPosition(store: EditorStore, t: Transform): Vec2 {
-  const off = screenLengthToWorld(store.viewport, ROTATE_KNOB_OFFSET_PX);
-  return localToWorld({ ...t, flipX: false }, { x: 0, y: -t.h / 2 - off });
-}
 
 type State =
   | { kind: 'idle' }
-  | { kind: 'move'; origin: Vec2; starts: Map<string, Transform>; tx: Transaction }
-  | { kind: 'rotate'; pivot: Vec2; startAngle: number; starts: Map<string, Transform>; single: boolean; tx: Transaction }
+  | { kind: 'move'; origin: Vec2; starts: Map<string, Transform>; structs: StructureStarts; tx: Transaction }
+  | {
+      kind: 'rotate';
+      pivot: Vec2;
+      startAngle: number;
+      starts: Map<string, Transform>;
+      single: boolean;
+      tx: Transaction;
+    }
   | { kind: 'resize'; id: string; handle: Handle; start: Transform; tx: Transaction }
   | { kind: 'resizeGroup'; handle: Handle; box: Rect; grab: Vec2; starts: Map<string, Transform>; tx: Transaction };
-
-const CURSORS = ['ew-resize', 'nwse-resize', 'ns-resize', 'nesw-resize'] as const;
-
-export function handleCursor(h: Handle, rotation: number): string {
-  const base: Record<Handle, number> = { e: 0, se: 45, s: 90, sw: 135, w: 180, nw: 225, n: 270, ne: 315 };
-  const a = (((base[h] + rotation) % 180) + 180) % 180;
-  return CURSORS[Math.round(a / 45) % 4]!;
-}
 
 const startsOf = (fs: Furniture[]) => new Map(fs.map((f) => [f.id, { ...f.transform }]));
 
@@ -97,10 +71,15 @@ export class TransformTool implements Tool {
     if (!frame) return;
     const sel = store.selectedFurniture;
     if (handle === 'rotate') {
-      const pivot = frame.kind === 'single' ? { x: frame.f.transform.x, y: frame.f.transform.y } : rectCenter(frame.box);
+      const pivot =
+        frame.kind === 'single' ? { x: frame.f.transform.x, y: frame.f.transform.y } : rectCenter(frame.box);
       this.state = {
-        kind: 'rotate', pivot, startAngle: angleDeg(pivot, e.world), starts: startsOf(sel),
-        single: frame.kind === 'single', tx: store.stack.begin(),
+        kind: 'rotate',
+        pivot,
+        startAngle: angleDeg(pivot, e.world),
+        starts: startsOf(sel),
+        single: frame.kind === 'single',
+        tx: store.stack.begin(),
       };
       return;
     }
@@ -111,13 +90,26 @@ export class TransformTool implements Tool {
       // real bounds edge doesn't jump to the pointer.
       const edge = handlePosition(rectAsTransform(frame.box), handle);
       const grab = { x: e.world.x - edge.x, y: e.world.y - edge.y };
-      this.state = { kind: 'resizeGroup', handle, box: frame.box, grab, starts: startsOf(sel), tx: store.stack.begin() };
+      this.state = {
+        kind: 'resizeGroup',
+        handle,
+        box: frame.box,
+        grab,
+        starts: startsOf(sel),
+        tx: store.stack.begin(),
+      };
     }
     store.setFeedback({ resizing: true });
   }
 
   beginMove(store: EditorStore, e: ToolPointerEvent): void {
-    this.state = { kind: 'move', origin: e.world, starts: startsOf(store.selectedFurniture), tx: store.stack.begin() };
+    this.state = {
+      kind: 'move',
+      origin: e.world,
+      starts: startsOf(store.selectedFurniture),
+      structs: structureStarts(store),
+      tx: store.stack.begin(),
+    };
   }
 
   onPointerDown(e: ToolPointerEvent, ctx: ToolContext): void {
@@ -138,7 +130,12 @@ export class TransformTool implements Tool {
     if (s.kind === 'resizeGroup') {
       const pointer = { x: e.world.x - s.grab.x, y: e.world.y - s.grab.y };
       const next = resizeFromHandle(rectAsTransform(s.box), s.handle, pointer, store.lockAspect !== e.shift);
-      const to = { minX: next.x - next.w / 2, minY: next.y - next.h / 2, maxX: next.x + next.w / 2, maxY: next.y + next.h / 2 };
+      const to = {
+        minX: next.x - next.w / 2,
+        minY: next.y - next.h / 2,
+        maxX: next.x + next.w / 2,
+        maxY: next.y + next.h / 2,
+      };
       const targets = [...s.starts].map(([id, from]) => ({ id, from, to: mapTransformBox(from, s.box, to) }));
       s.tx.update(new TransformCommand('Resize', targets));
     }
@@ -178,21 +175,31 @@ export class TransformTool implements Tool {
   private drag(s: Extract<State, { kind: 'move' }>, e: ToolPointerEvent, store: EditorStore): void {
     let dx = e.world.x - s.origin.x;
     let dy = e.world.y - s.origin.y;
-    const moved: Rect = [...s.starts.values()]
-      .map((t) => aabbOf({ ...t, x: t.x + dx, y: t.y + dy }))
-      .reduce(unionRect);
-    // Alt disables snapping for fine placement.
-    if (!e.alt) {
+    const boxes = [...s.starts.values()].map((t) => aabbOf({ ...t, x: t.x + dx, y: t.y + dy }));
+    const walls = movedWallBounds(s.structs, dx, dy);
+    if (walls) boxes.push(walls);
+    // Alt disables snapping for fine placement. Lone openings have no box:
+    // they slide along their wall in steps instead.
+    if (!e.alt && boxes.length) {
       const tol = screenLengthToWorld(store.viewport, store.snap.tolerancePx);
-      const snap = snapBox(moved, this.snapTargets(store, s.starts), store.snap, tol);
+      const moving = new Set([...s.starts.keys(), ...s.structs.walls.map((w) => w.id)]);
+      const snap = snapBox(boxes.reduce(unionRect), this.snapTargets(store, moving), store.snap, tol);
       dx += snap.dx;
       dy += snap.dy;
       store.setFeedback({ guides: snap.guides });
     }
     const targets: TransformTarget[] = [...s.starts].map(([id, from]) => ({
-      id, from, to: { ...from, x: from.x + dx, y: from.y + dy },
+      id,
+      from,
+      to: { ...from, x: from.x + dx, y: from.y + dy },
     }));
-    s.tx.update(new TransformCommand('Move', targets));
+    const parts: Command[] = [];
+    if (targets.length) parts.push(new TransformCommand('Move', targets));
+    const structure = structureMoveCommand(s.structs, dx, dy, e.alt);
+    if (structure) parts.push(structure);
+    // Furniture and walls dragged together still land as one history entry.
+    if (parts.length > 1) s.tx.update(new BatchCommand('Move', parts, `${store.selectedCount} objects`));
+    else if (parts[0]) s.tx.update(parts[0]);
   }
 
   private rotate(s: Extract<State, { kind: 'rotate' }>, e: ToolPointerEvent, store: EditorStore): void {
@@ -205,7 +212,9 @@ export class TransformTool implements Tool {
     const target = e.shift ? base + sweep : snapAngle(base + sweep, step);
     const delta = target - base;
     const targets: TransformTarget[] = [...s.starts].map(([id, from]) => ({
-      id, from, to: rotateTransform(from, s.pivot, delta),
+      id,
+      from,
+      to: rotateTransform(from, s.pivot, delta),
     }));
     s.tx.update(new TransformCommand('Rotate', targets));
     const shown = s.single ? targets[0]!.to.rotation : delta;
@@ -213,19 +222,28 @@ export class TransformTool implements Tool {
     store.setFeedback({ rotateLabel: { text, at: e.world } });
   }
 
-  private snapTargets(store: EditorStore, moving: Map<string, Transform>) {
-    const objects = pickableFurniture(store.doc)
-      .filter((f) => !moving.has(f.id))
+  /** Layer setting "Snap targets" (08): off means nothing on that layer attracts. */
+  private snapTargets(store: EditorStore, moving: ReadonlySet<string>) {
+    const doc = store.doc;
+    const attracts = (layerId: string) => {
+      const l = findLayer(doc, layerId);
+      return !!l && l.visible && l.snapTargets;
+    };
+    const objects = doc.objects
+      .filter((o): o is Furniture => o.kind === 'furniture' && !moving.has(o.id) && attracts(o.layerId))
       .map((f) => aabbOf(f.transform));
-    const walls = store.doc.objects.flatMap((o) => {
-      if (o.kind !== 'wall') return [];
+    const walls = doc.objects.flatMap((o) => {
+      if (o.kind !== 'wall' || moving.has(o.id) || !attracts(o.layerId)) return [];
       const h = o.thickness / 2;
-      return [boundsOf([
-        { x: o.a.x - h, y: o.a.y - h }, { x: o.a.x + h, y: o.a.y + h },
-        { x: o.b.x - h, y: o.b.y - h }, { x: o.b.x + h, y: o.b.y + h },
-      ])];
+      return [
+        boundsOf([
+          { x: o.a.x - h, y: o.a.y - h },
+          { x: o.a.x + h, y: o.a.y + h },
+          { x: o.b.x - h, y: o.b.y - h },
+          { x: o.b.x + h, y: o.b.y + h },
+        ]),
+      ];
     });
     return { objects, walls };
   }
 }
-

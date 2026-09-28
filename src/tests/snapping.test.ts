@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SNAP, snapAngle, snapBox } from '../core/snapping';
 import type { Rect } from '../geometry/vec';
 
-const box = (minX: number, minY: number, w: number, h: number): Rect => ({ minX, minY, maxX: minX + w, maxY: minY + h });
+const box = (minX: number, minY: number, w: number, h: number): Rect => ({
+  minX,
+  minY,
+  maxX: minX + w,
+  maxY: minY + h,
+});
 const none = { objects: [], walls: [] };
 
 describe('snapping', () => {

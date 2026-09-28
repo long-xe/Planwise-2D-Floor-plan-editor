@@ -1,47 +1,27 @@
-import { type AlignKind, type DistributeKind, type UnitOffset, alignOffsets, distributeOffsets } from './align';
+import { type AlignKind, type DistributeKind, alignOffsets, distributeOffsets } from './align';
 import { CommandStack } from './commandStack';
 import { type Command, SetAppearanceCommand, TransformCommand, type TransformKind } from './commands';
-import type { Appearance, Doc, Furniture } from './document';
-import { findFurniture, findLayer } from './document';
-import { duplicateCommand, groupCommand } from './editActions';
-import { HitIndex, type HitMode, type HitReport, type MarqueeMode } from './picking';
+import type { Appearance, Doc, Furniture, SceneObject } from './document';
+import { findFurniture, findLayer, findObject, isEditable, layersTopDown } from './document';
+import {
+  AddLayerCommand,
+  DeleteLayerCommand,
+  type LayerPatch,
+  LayerPropsCommand,
+  type LayerPropsType,
+  newLayer,
+} from './layerCommands';
+import { duplicateCommand, editObjectsCommand, groupCommand, offsetsCommand, resizeUnitsCommand } from './editActions';
+import { HitIndex, type HitReport } from './picking';
+import { DEFAULT_HIT, type FrameStats, type HitSettings, type ToolFeedback } from './storeTypes';
 import { type SelectionUnit, expandGroups, selectionUnits, unitsBounds } from './selection';
-import { DEFAULT_SNAP, type Guide, type SnapSettings } from './snapping';
-import { BatchCommand, DeleteCommand } from './structureCommands';
+import { DEFAULT_SNAP, type SnapSettings } from './snapping';
+import { DeleteCommand } from './structureCommands';
 import { type Viewport, createViewport } from './viewport';
-import { type Transform, mapTransformBox } from '../geometry/transform';
-import type { Rect, Vec2 } from '../geometry/vec';
+import type { Transform } from '../geometry/transform';
 
-/** Transient, non-document state a tool shows on canvas (guides, live labels). */
-export interface ToolFeedback {
-  guides: Guide[];
-  /** "↻ 30.0°  ·  snap 15°" while rotating, anchored at a world point. */
-  rotateLabel: { text: string; at: Vec2 } | null;
-  resizing: boolean;
-  /** Live marquee rectangle (world) while dragging on empty canvas. */
-  marquee: { rect: Rect; mode: MarqueeMode } | null;
-}
-
-/** Right panel "Hit detection" section. */
-export interface HitSettings {
-  mode: HitMode;
-  marquee: MarqueeMode;
-  showRegions: boolean;
-  showBroadphase: boolean;
-  logTimings: boolean;
-}
-
-// Design shows hit regions on, but that is a debugging state; the editor
-// opens with them off so screen 06 stays clean (toggle in Hit detection).
-export const DEFAULT_HIT: HitSettings = {
-  mode: 'polygon', marquee: 'intersect', showRegions: false, showBroadphase: false, logTimings: true,
-};
-
-export interface FrameStats {
-  fps: number;
-  frameMs: number;
-  cursor: Vec2;
-}
+export type { FrameStats, HitSettings, ToolFeedback } from './storeTypes';
+export { DEFAULT_HIT } from './storeTypes';
 
 type Listener = () => void;
 
@@ -53,6 +33,11 @@ export class EditorStore {
   readonly doc: Doc;
   readonly stack: CommandStack;
   selection: string[] = [];
+  /**
+   * Layer opened in the Layers manager (08). While set, the left panel
+   * widens and the right panel shows the layer instead of an object.
+   */
+  activeLayerId: string | null = null;
   viewport: Viewport = createViewport();
   snap: SnapSettings = { ...DEFAULT_SNAP };
   lockAspect = true;
@@ -68,7 +53,7 @@ export class EditorStore {
    * single sample reads 0 or 0.1; the average of many converges on the truth.
    */
   hitCostMs = 0;
-  stats: FrameStats = { fps: 0, frameMs: 0, cursor: { x: 0, y: 0 } };
+  stats: FrameStats = { fps: 0, frameMs: 0, cursor: { x: 0, y: 0 }, cache: 'none', layerDraws: {} };
 
   /** Set on any visible change; the render loop clears it after drawing. */
   dirty = true;
@@ -82,6 +67,12 @@ export class EditorStore {
     this.doc = doc;
     this.stack = new CommandStack(doc, () => {
       this.index = null;
+      // Objects that were deleted, hidden or locked can't stay selected.
+      this.selection = this.selection.filter((id) => {
+        const o = findObject(this.doc, id);
+        return !!o && isEditable(this.doc, o);
+      });
+      if (this.activeLayerId && !findLayer(this.doc, this.activeLayerId)) this.activeLayerId = null;
       this.changed();
     });
   }
@@ -146,10 +137,49 @@ export class EditorStore {
     return selectionUnits(this.doc, this.selection);
   }
 
+  /** What "Selected" counts: furniture units (a group is one) plus walls, doors and windows. */
+  get selectedCount(): number {
+    const structural = this.selection.filter((id) => findObject(this.doc, id)?.kind !== 'furniture').length;
+    return this.units.length + structural;
+  }
+
   /** Selecting any group member selects the whole group. */
   select(ids: string[]): void {
-    this.selection = expandGroups(this.doc, ids);
+    // Model rule: objects on locked or hidden layers can't be selected.
+    this.selection = expandGroups(this.doc, ids).filter((id) => {
+      const o = findObject(this.doc, id);
+      return !!o && isEditable(this.doc, o);
+    });
+    // Picking objects leaves the Layers manager.
+    if (this.selection.length) this.activeLayerId = null;
     this.changed();
+  }
+
+  focusLayer(id: string | null): void {
+    this.activeLayerId = id;
+    if (id) this.selection = [];
+    this.changed();
+  }
+
+  // ── Layers (screen 08); every change is an undoable command ──────────
+
+  setLayer(type: LayerPropsType, id: string, patch: LayerPatch): void {
+    const cmd = LayerPropsCommand.of(this.doc, type, id, patch);
+    if (cmd) this.stack.execute(cmd);
+  }
+
+  addLayer(): void {
+    const layer = newLayer(this.doc);
+    if (this.stack.execute(new AddLayerCommand(layer))) this.focusLayer(layer.id);
+  }
+
+  /** Deleting the open layer keeps the manager open on its neighbour. */
+  deleteLayer(id: string): void {
+    const list = layersTopDown(this.doc);
+    const i = list.findIndex((l) => l.id === id);
+    const next = list[i + 1] ?? list[i - 1];
+    const wasOpen = this.activeLayerId === id;
+    if (this.stack.execute(new DeleteLayerCommand(this.doc, id)) && wasOpen && next) this.focusLayer(next.id);
   }
 
   setHit(patch: Partial<HitSettings>): void {
@@ -206,29 +236,33 @@ export class EditorStore {
   // ── Multi-selection (screen 07) ──────────────────────────────────────
 
   align(kind: AlignKind): void {
-    this.executeOffsets(kind, alignOffsets(this.units, kind));
+    this.run(offsetsCommand(kind, alignOffsets(this.units, kind)));
   }
 
   distribute(kind: DistributeKind): void {
-    this.executeOffsets(kind, distributeOffsets(this.units, kind));
+    this.run(offsetsCommand(kind, distributeOffsets(this.units, kind)));
   }
 
   /** Selection bounds X/Y: move everything so the bounds' top-left lands there. */
   moveSelectionTo(x: number, y: number): void {
     const box = unitsBounds(this.units);
-    if (!box) return;
-    const dx = x - box.minX;
-    const dy = y - box.minY;
-    this.executeOffsets('Move', this.units.map((unit) => ({ unit, dx, dy })));
+    if (box)
+      this.run(
+        offsetsCommand(
+          'Move',
+          this.units.map((unit) => ({ unit, dx: x - box.minX, dy: y - box.minY })),
+        ),
+      );
   }
 
   /** Selection bounds W/H: stretch from the top-left corner. */
   resizeSelectionTo(w: number, h: number): void {
-    const from = unitsBounds(this.units);
-    if (!from) return;
-    const to = { minX: from.minX, minY: from.minY, maxX: from.minX + Math.max(0.05, w), maxY: from.minY + Math.max(0.05, h) };
-    const targets = this.selectedFurniture.map((f) => ({ id: f.id, from: { ...f.transform }, to: mapTransformBox(f.transform, from, to) }));
-    this.stack.execute(new TransformCommand('Resize', targets));
+    this.run(resizeUnitsCommand(this.units, w, h));
+  }
+
+  /** Walls, doors, windows edited from the panel: edited copies in, one undoable command out. */
+  editObjects(type: string, next: SceneObject[]): void {
+    this.run(editObjectsCommand(this.doc, type, next));
   }
 
   group(): void {
@@ -246,15 +280,8 @@ export class EditorStore {
     if (this.stack.execute(new DeleteCommand(this.doc, this.selection))) this.select([]);
   }
 
-  /** One history entry; one Move child per unit so History shows the tree. */
-  private executeOffsets(type: string, offsets: UnitOffset[]): void {
-    const children: Command[] = offsets
-      .filter((o) => Math.abs(o.dx) > 1e-9 || Math.abs(o.dy) > 1e-9)
-      .map((o) => new TransformCommand('Move', o.unit.members.map((f) => ({
-        id: f.id, from: { ...f.transform }, to: { ...f.transform, x: f.transform.x + o.dx, y: f.transform.y + o.dy },
-      }))));
-    if (!children.length) return;
-    this.stack.execute(new BatchCommand(type, children, `${offsets.length} objects`));
+  private run(cmd: Command | null): void {
+    if (cmd) this.stack.execute(cmd);
   }
 
   undo(): void {

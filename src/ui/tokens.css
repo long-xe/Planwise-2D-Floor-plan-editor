@@ -25,12 +25,14 @@
   --pw-tool-border: rgba(217, 98, 59, 0.5);
   --pw-tool-region: rgba(217, 98, 59, 0.15); /* legend: polygon hit region */
   --pw-shadow-float: 0 4px 14px rgba(0, 0, 0, 0.08); /* floating canvas cards */
+  --pw-shadow-drag: 0 8px 20px rgba(27, 42, 65, 0.16); /* layer card being dragged */
   --pw-success: #6e9b7b; /* toggles on, saved, fps ok */
   --pw-warning: #e0a526;
 
   /* Canvas */
   --pw-grid-minor: #e4e9f1;
   --pw-grid-major: #c9d5e6;
+  --pw-glass: #eaf0f8; /* window panes (and glazing-like fills) */
 
   /* Type */
   --pw-font-sans: 'IBM Plex Sans', system-ui, sans-serif;
@@ -40,6 +42,7 @@
   --pw-topbar-h: 52px;
   --pw-rail-w: 48px;
   --pw-left-w: 260px;
+  --pw-left-wide-w: 360px; /* Layers manager (08) */
   --pw-right-w: 276px;
   --pw-statusbar-h: 28px;
 }

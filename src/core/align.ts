@@ -39,7 +39,7 @@ function distributeAxis(units: readonly SelectionUnit[], axis: 'x' | 'y'): Map<S
   if (units.length < 3) return out;
   const min = (u: SelectionUnit) => (axis === 'x' ? u.bounds.minX : u.bounds.minY);
   const size = (u: SelectionUnit) => (axis === 'x' ? u.bounds.maxX - u.bounds.minX : u.bounds.maxY - u.bounds.minY);
-  const sorted = [...units].sort((a, b) => min(a) + size(a) / 2 - (min(b) + size(b) / 2));
+  const sorted = units.toSorted((a, b) => min(a) + size(a) / 2 - (min(b) + size(b) / 2));
   const first = sorted[0]!;
   const last = sorted[sorted.length - 1]!;
   const span = min(last) + size(last) - min(first);

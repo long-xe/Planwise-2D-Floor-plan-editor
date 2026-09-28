@@ -2,20 +2,25 @@ import { describe, expect, it } from 'vitest';
 import { findLayer } from '../core/document';
 import { HitIndex, marqueePick, pickAt } from '../core/picking';
 import { SpatialHash } from '../core/spatialIndex';
-import {
-  pointInPolygon, polygonInsideRect, polygonIntersectsRect, rayCrossings,
-} from '../geometry/hitTest';
+import { pointInPolygon, polygonInsideRect, polygonIntersectsRect, rayCrossings } from '../geometry/hitTest';
 import { aabbOf, footprintToWorld } from '../geometry/transform';
 import type { Vec2 } from '../geometry/vec';
 import { createDemoDoc } from '../library/demoScene';
 
 // World outline of the design's L-sofa (v0…v5).
 const L: Vec2[] = [
-  { x: 0.48, y: 2.0 }, { x: 3.68, y: 2.0 }, { x: 3.68, y: 2.92 },
-  { x: 1.4, y: 2.92 }, { x: 1.4, y: 4.4 }, { x: 0.48, y: 4.4 },
+  { x: 0.48, y: 2.0 },
+  { x: 3.68, y: 2.0 },
+  { x: 3.68, y: 2.92 },
+  { x: 1.4, y: 2.92 },
+  { x: 1.4, y: 4.4 },
+  { x: 0.48, y: 4.4 },
 ];
 const square = (x: number, y: number, s = 1): Vec2[] => [
-  { x, y }, { x: x + s, y }, { x: x + s, y: y + s }, { x, y: y + s },
+  { x, y },
+  { x: x + s, y },
+  { x: x + s, y: y + s },
+  { x, y: y + s },
 ];
 
 describe('point in polygon (even-odd)', () => {
@@ -38,7 +43,12 @@ describe('point in polygon (even-odd)', () => {
   });
 
   it('a ray through a vertex counts it once', () => {
-    const diamond = [{ x: 0, y: -1 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }];
+    const diamond = [
+      { x: 0, y: -1 },
+      { x: 1, y: 0 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+    ];
     // The ray from (2, 0) runs through vertices (1,0) and (-1,0).
     expect(pointInPolygon({ x: 2, y: 0 }, diamond)).toBe(false);
     expect(pointInPolygon({ x: 0.5, y: 0 }, diamond)).toBe(true);
@@ -62,7 +72,12 @@ describe('marquee', () => {
   });
 
   it('intersect catches a crossing with no vertex inside either shape', () => {
-    const thin = [{ x: -5, y: -0.1 }, { x: 5, y: -0.1 }, { x: 5, y: 0.1 }, { x: -5, y: 0.1 }];
+    const thin = [
+      { x: -5, y: -0.1 },
+      { x: 5, y: -0.1 },
+      { x: 5, y: 0.1 },
+      { x: -5, y: 0.1 },
+    ];
     expect(polygonIntersectsRect(thin, { minX: -1, minY: -1, maxX: 1, maxY: 1 })).toBe(true);
     expect(polygonIntersectsRect(thin, { minX: -1, minY: 0.5, maxX: 1, maxY: 1 })).toBe(false);
   });
@@ -103,7 +118,9 @@ describe('hit pipeline on the demo scene', () => {
       else layer.locked = true;
       const index = new HitIndex(doc);
       expect(pickAt(index, crook).id).toBeNull();
-      expect(marqueePick(index, { minX: 0, minY: 0, maxX: 12, maxY: 9 }, 'intersect')).toEqual([]);
+      const everything = marqueePick(index, { minX: 0, minY: 0, maxX: 12, maxY: 9 }, 'intersect');
+      expect(everything.length).toBeGreaterThan(0); // other layers still pick
+      expect(everything.filter((id) => doc.objects.find((o) => o.id === id)!.layerId === 'furniture')).toEqual([]);
     }
   });
 
@@ -122,8 +139,8 @@ describe('spatial hash', () => {
     const h = new SpatialHash(2);
     h.insert('a', { minX: 0.5, minY: 0.5, maxX: 1, maxY: 1 });
     h.insert('b', { minX: 1.5, minY: 1.5, maxX: 2.5, maxY: 2.5 });
-    expect([...h.queryPoint({ x: 0.1, y: 0.1 })].sort()).toEqual(['a', 'b']);
+    expect(h.queryPoint({ x: 0.1, y: 0.1 }).toSorted()).toEqual(['a', 'b']);
     expect([...h.queryPoint({ x: 3, y: 3 })]).toEqual(['b']);
-    expect([...h.queryRect({ minX: 0, minY: 0, maxX: 4, maxY: 4 })].sort()).toEqual(['a', 'b']);
+    expect([...h.queryRect({ minX: 0, minY: 0, maxX: 4, maxY: 4 })].toSorted()).toEqual(['a', 'b']);
   });
 });

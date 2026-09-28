@@ -3,9 +3,11 @@ import type { EditorStore } from '../core/store';
 import { type Viewport, scaleOf, worldToScreen } from '../core/viewport';
 import { HANDLES, aabbOf, cornersOf, handlePosition } from '../geometry/transform';
 import type { Rect, Vec2 } from '../geometry/vec';
-import { rotateKnobPosition, selectionFrame } from '../tools/TransformTool';
+import { contentBounds } from '../core/layerStats';
+import { rotateKnobPosition, selectionFrame } from '../tools/selectionFrame';
 import { drawBroadphase, drawHitRegions } from './hitDebug';
 import { drawMarquee, drawMultiSelection } from './multiSelection';
+import { drawStructureSelection } from './structureOverlay';
 import { pill } from './pill';
 import type { CanvasTheme } from './theme';
 
@@ -26,6 +28,8 @@ export function drawOverlay(g: CanvasRenderingContext2D, store: EditorStore, vie
   } else if (frame) {
     drawMultiSelection(g, store, frame.box, frame.padded, theme);
   }
+  if (store.activeLayerId) drawLockedOutlines(g, store, theme);
+  drawStructureSelection(g, store, theme);
   const mq = store.feedback.marquee;
   if (mq) drawMarquee(g, store, mq.rect, theme);
   // Hover debugging only while idle: during a drag the report is stale.
@@ -38,7 +42,13 @@ export function drawOverlay(g: CanvasRenderingContext2D, store: EditorStore, vie
   }
 }
 
-function drawSelection(g: CanvasRenderingContext2D, store: EditorStore, f: Furniture, theme: CanvasTheme, handles: boolean): void {
+function drawSelection(
+  g: CanvasRenderingContext2D,
+  store: EditorStore,
+  f: Furniture,
+  theme: CanvasTheme,
+  handles: boolean,
+): void {
   const v = store.viewport;
   const pts = cornersOf({ ...f.transform, flipX: false }).map((p) => worldToScreen(v, p));
   g.beginPath();
@@ -81,10 +91,34 @@ function drawSelection(g: CanvasRenderingContext2D, store: EditorStore, f: Furni
   g.fill();
 }
 
+/** Layers manager: a dotted tool-colour frame around each locked layer's content (design 08). */
+function drawLockedOutlines(g: CanvasRenderingContext2D, store: EditorStore, theme: CanvasTheme): void {
+  const v = store.viewport;
+  for (const layer of store.doc.layers) {
+    if (!layer.locked || !layer.visible) continue;
+    const box = contentBounds(store.doc, layer.id);
+    if (!box) continue;
+    const a = worldToScreen(v, { x: box.minX, y: box.minY });
+    const b = worldToScreen(v, { x: box.maxX, y: box.maxY });
+    g.setLineDash([2, 4]);
+    g.strokeStyle = theme.tool;
+    g.globalAlpha = 0.7;
+    g.lineWidth = 1;
+    g.strokeRect(Math.round(a.x) - 2.5, Math.round(a.y) - 2.5, b.x - a.x + 6, b.y - a.y + 6);
+    g.globalAlpha = 1;
+    g.setLineDash([]);
+  }
+}
+
 /** Distance from the object's centre to the nearest wall face in each axis direction. */
 function drawWallDistances(g: CanvasRenderingContext2D, doc: Doc, f: Furniture, v: Viewport, theme: CanvasTheme): void {
   const c = { x: f.transform.x, y: f.transform.y };
-  const dirs: Vec2[] = [{ x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+  const dirs: Vec2[] = [
+    { x: -1, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 },
+  ];
   g.setLineDash([4, 3]);
   g.lineCap = 'round';
   for (const d of dirs) {
@@ -157,7 +191,13 @@ function drawGuides(g: CanvasRenderingContext2D, store: EditorStore, theme: Canv
 }
 
 /** North arrow (top-right) and scale bar (bottom-right) in screen space. */
-export function drawSheetMarks(g: CanvasRenderingContext2D, v: Viewport, w: number, h: number, theme: CanvasTheme): void {
+export function drawSheetMarks(
+  g: CanvasRenderingContext2D,
+  v: Viewport,
+  w: number,
+  h: number,
+  theme: CanvasTheme,
+): void {
   const cx = w - 56 - 20;
   const cy = 80;
   g.beginPath();
@@ -166,11 +206,17 @@ export function drawSheetMarks(g: CanvasRenderingContext2D, v: Viewport, w: numb
   g.lineWidth = 1;
   g.stroke();
   g.beginPath();
-  g.moveTo(cx, cy - 15); g.lineTo(cx - 7, cy + 13); g.lineTo(cx, cy + 8); g.closePath();
+  g.moveTo(cx, cy - 15);
+  g.lineTo(cx - 7, cy + 13);
+  g.lineTo(cx, cy + 8);
+  g.closePath();
   g.fillStyle = theme.ink;
   g.fill();
   g.beginPath();
-  g.moveTo(cx, cy - 15); g.lineTo(cx + 7, cy + 13); g.lineTo(cx, cy + 8); g.closePath();
+  g.moveTo(cx, cy - 15);
+  g.lineTo(cx + 7, cy + 13);
+  g.lineTo(cx, cy + 8);
+  g.closePath();
   g.fillStyle = theme.surface;
   g.fill();
   g.stroke();

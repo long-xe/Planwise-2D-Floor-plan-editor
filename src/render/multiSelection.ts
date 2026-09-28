@@ -2,7 +2,7 @@ import type { EditorStore } from '../core/store';
 import { worldToScreen } from '../core/viewport';
 import { HANDLES, cornersOf, handlePosition } from '../geometry/transform';
 import type { Rect, Vec2 } from '../geometry/vec';
-import { rectAsTransform, rotateKnobPosition } from '../tools/TransformTool';
+import { rectAsTransform, rotateKnobPosition } from '../tools/selectionFrame';
 import { pill } from './pill';
 import type { CanvasTheme } from './theme';
 
@@ -34,15 +34,30 @@ function outline(g: CanvasRenderingContext2D, pts: Vec2[], theme: CanvasTheme): 
  * one padded box with handles + rotate knob around them all, and a
  * "N selected · W × H m" chip above.
  */
-export function drawMultiSelection(g: CanvasRenderingContext2D, store: EditorStore, box: Rect, padded: Rect, theme: CanvasTheme): void {
+export function drawMultiSelection(
+  g: CanvasRenderingContext2D,
+  store: EditorStore,
+  box: Rect,
+  padded: Rect,
+  theme: CanvasTheme,
+): void {
   const v = store.viewport;
   const units = store.units;
   for (const u of units) {
     const only = u.members.length === 1 ? u.members[0]! : null;
     const pts = only
       ? cornersOf({ ...only.transform, flipX: false })
-      : [{ x: u.bounds.minX, y: u.bounds.minY }, { x: u.bounds.maxX, y: u.bounds.minY }, { x: u.bounds.maxX, y: u.bounds.maxY }, { x: u.bounds.minX, y: u.bounds.maxY }];
-    outline(g, pts.map((p) => worldToScreen(v, p)), theme);
+      : [
+          { x: u.bounds.minX, y: u.bounds.minY },
+          { x: u.bounds.maxX, y: u.bounds.minY },
+          { x: u.bounds.maxX, y: u.bounds.maxY },
+          { x: u.bounds.minX, y: u.bounds.maxY },
+        ];
+    outline(
+      g,
+      pts.map((p) => worldToScreen(v, p)),
+      theme,
+    );
   }
 
   const r = screenRect(store, padded);

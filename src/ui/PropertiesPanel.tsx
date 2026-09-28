@@ -1,11 +1,15 @@
 import type { Furniture } from '../core/document';
+import { findLayer } from '../core/document';
 import { normalizeRotation } from '../geometry/transform';
 import { AppearanceSection } from './AppearanceSection';
 import { HitDetectionSection } from './HitDetectionSection';
+import { LayerPanel } from './LayerPanel';
+import { StructurePanel } from './StructurePanel';
 import { AlignSection, MultiSelectionHeader, SelectionBoundsSection } from './MultiSelectionPanel';
 import { IconButton, NumberField, Section } from './controls';
 import { Icon } from './Icon';
-import { ITEM_ICON, Tabs } from './LeftPanel';
+import { ItemGlyph } from './itemIcons';
+import { Tabs } from './LeftPanel';
 import { SnappingSection } from './SnappingSection';
 import { useEditor } from './useStore';
 import bed from './icons/bed.svg';
@@ -13,18 +17,26 @@ import rotateIcon from './icons/rotate.svg';
 import flipIcon from './icons/flip.svg';
 import linkIcon from './icons/link.svg';
 import check from './icons/check.svg';
+import { cn } from './cn';
 
 export function PropertiesPanel() {
   const store = useEditor();
   const sel = store.selectedFurniture;
   const f = sel.length === 1 ? sel[0] : undefined;
+  const layer = store.activeLayerId ? findLayer(store.doc, store.activeLayerId) : undefined;
+  // Walls, doors and windows selected on their own get their own panel.
+  const structural = sel.length ? [] : store.selection;
 
   return (
     // The design draws the divider over the panel's first column (content starts
     // at +16), so use an inset shadow rather than a border that takes up width.
     <aside className="flex min-h-0 flex-col overflow-y-auto bg-surface shadow-[inset_1px_0_0_var(--pw-border)]">
       <Tabs tabs={['Properties', 'Document']} active="Properties" />
-      {sel.length > 1 ? (
+      {layer ? (
+        <LayerPanel layer={layer} />
+      ) : structural.length ? (
+        <StructurePanel ids={structural} />
+      ) : sel.length > 1 ? (
         // Multi-selection / group (design 07).
         <>
           <MultiSelectionHeader />
@@ -51,11 +63,7 @@ function ObjectHeader({ f }: { f: Furniture }) {
   return (
     <div className="flex h-16 shrink-0 items-start gap-[10px] border-b border-line px-4 pt-[15px]">
       <span className="flex size-9 items-center justify-center rounded-[3px] border border-line bg-sunken">
-        {f.icon === 'bed' ? (
-          <Icon src={bed} w={14} h={13} />
-        ) : (
-          <Icon src={ITEM_ICON[f.icon].src} w={ITEM_ICON[f.icon].w} h={ITEM_ICON[f.icon].h} />
-        )}
+        {f.icon === 'bed' ? <Icon src={bed} w={14} h={13} /> : <ItemGlyph icon={f.icon} className="text-ink" />}
       </span>
       <div>
         <p className="text-13 font-semibold text-ink">{f.name}</p>
@@ -88,7 +96,7 @@ function TransformSection({ f }: { f: Furniture }) {
   };
 
   return (
-    <Section title="Transform" pb="pb-[14px]">
+    <Section title="Transform" className="pb-[14px]">
       <div className="grid grid-cols-2 gap-2">
         <NumberField label="X" unit="m" value={t.x} onCommit={(x) => store.applyTransform('Move', f.id, { x })} />
         <NumberField label="Y" unit="m" value={t.y} onCommit={(y) => store.applyTransform('Move', f.id, { y })} />
@@ -103,13 +111,24 @@ function TransformSection({ f }: { f: Furniture }) {
           onCommit={(r) => store.applyTransform('Rotate', f.id, { rotation: normalizeRotation(r) })}
         />
         <div className="flex gap-[6px]">
-          <IconButton label="Rotate 90°" onClick={() => store.applyTransform('Rotate', f.id, { rotation: normalizeRotation(t.rotation + 90) })}>
+          <IconButton
+            label="Rotate 90°"
+            onClick={() => store.applyTransform('Rotate', f.id, { rotation: normalizeRotation(t.rotation + 90) })}
+          >
             <Icon src={rotateIcon} w={13} h={15} />
           </IconButton>
-          <IconButton label="Flip horizontal" active={t.flipX} onClick={() => store.applyTransform('Flip', f.id, { flipX: !t.flipX })}>
+          <IconButton
+            label="Flip horizontal"
+            active={t.flipX}
+            onClick={() => store.applyTransform('Flip', f.id, { flipX: !t.flipX })}
+          >
             <Icon src={flipIcon} w={14} h={16} />
           </IconButton>
-          <IconButton label="Lock aspect ratio" active={store.lockAspect} onClick={() => store.setLockAspect(!store.lockAspect)}>
+          <IconButton
+            label="Lock aspect ratio"
+            active={store.lockAspect}
+            onClick={() => store.setLockAspect(!store.lockAspect)}
+          >
             <Icon src={linkIcon} w={17} h={17} />
           </IconButton>
         </div>
@@ -122,9 +141,10 @@ function TransformSection({ f }: { f: Furniture }) {
           onChange={(e) => store.setLockAspect(e.target.checked)}
         />
         <span
-          className={`mt-[2px] flex size-[14px] items-center justify-center rounded-[2px] border ${
-            store.lockAspect ? 'border-accent bg-accent' : 'border-line bg-surface'
-          }`}
+          className={cn(
+            'mt-[2px] flex size-[14px] items-center justify-center rounded-[2px] border border-line bg-surface',
+            store.lockAspect && 'border-accent bg-accent',
+          )}
         >
           {store.lockAspect && <Icon src={check} w={6.6} h={4.4} />}
         </span>

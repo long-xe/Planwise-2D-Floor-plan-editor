@@ -34,14 +34,29 @@ export interface Furniture {
   layerId: string;
   name: string;
   /** Catalog icon key, used by the Layers list and Properties header. */
-  icon: 'sofa' | 'desk' | 'bed' | 'bath';
+  icon: ItemIcon;
   transform: Transform;
   /** Footprint polygon in unit space (-0.5..0.5), scaled by w/h. */
   footprint: Vec2[];
   appearance: Appearance;
   /** Members of a group select, align and move as one unit (⌘G). */
   groupId?: string;
+  /** Room tag shown in the Layers manager ("bedroom", "living"). */
+  room?: string;
+  /** Electrical: switches and lights on the same circuit are wired together. */
+  circuit?: string;
 }
+
+export type FixtureIcon = 'outlet' | 'switch' | 'light';
+export type ItemIcon = 'sofa' | 'desk' | 'bed' | 'bath' | 'plant' | FixtureIcon;
+
+/** Electrical symbols draw in their layer's colour instead of an appearance. */
+export function isFixture(icon: ItemIcon): icon is FixtureIcon {
+  return icon === 'outlet' || icon === 'switch' || icon === 'light';
+}
+
+/** The layers every plan starts with; anything else is a user ("custom") layer. */
+export const DEFAULT_LAYER_IDS: readonly string[] = ['annotations', 'furniture', 'walls', 'grid'];
 
 export interface Group {
   id: string;
@@ -58,7 +73,27 @@ export interface Wall {
   thickness: number;
 }
 
-export type SceneObject = Furniture | Wall;
+/**
+ * A door or window cut into a wall (its host, `wallId`), measured along the
+ * wall's centreline from `a`. Own object so it lists, selects and deletes
+ * like anything else; deleting the wall takes its openings with it.
+ * Doors swing about the `hinge` jamb into the side given by `swing`
+ * (+1 = the wall normal (-dy, dx), -1 = the other side).
+ */
+export interface Opening {
+  kind: 'opening';
+  id: string;
+  layerId: string;
+  wallId: string;
+  type: 'door' | 'window';
+  /** Metres from wall.a to the near jamb. */
+  offset: number;
+  width: number;
+  hinge?: 'start' | 'end';
+  swing?: 1 | -1;
+}
+
+export type SceneObject = Furniture | Wall | Opening;
 
 export interface Doc {
   name: string;
@@ -83,6 +118,11 @@ export function findGroup(doc: Doc, id: string): Group | undefined {
 
 export function findLayer(doc: Doc, id: string): Layer | undefined {
   return doc.layers.find((l) => l.id === id);
+}
+
+/** Layers as the Layers panel lists them: top of the paint order first. */
+export function layersTopDown(doc: Doc): Layer[] {
+  return doc.layers.toSorted((a, b) => b.order - a.order);
 }
 
 /** Model-level rule: locked or hidden layers reject edits. */

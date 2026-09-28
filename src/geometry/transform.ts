@@ -71,12 +71,7 @@ export function handlePosition(t: Transform, h: Handle): Vec2 {
  * edge/corner fixed. Works in the object's rotated frame so handles behave
  * the same at any rotation.
  */
-export function resizeFromHandle(
-  start: Transform,
-  handle: Handle,
-  pointer: Vec2,
-  lockAspect: boolean,
-): Transform {
+export function resizeFromHandle(start: Transform, handle: Handle, pointer: Vec2, lockAspect: boolean): Transform {
   const d = handleDir(handle);
   const frame = { ...start, flipX: false };
   const local = rotate({ x: pointer.x - start.x, y: pointer.y - start.y }, -start.rotation);
@@ -139,8 +134,5 @@ export function normalizeRotation(deg: number): number {
 }
 
 export function transformsEqual(a: Transform, b: Transform): boolean {
-  return (
-    a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h &&
-    a.rotation === b.rotation && a.flipX === b.flipX
-  );
+  return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h && a.rotation === b.rotation && a.flipX === b.flipX;
 }

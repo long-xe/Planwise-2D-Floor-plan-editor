@@ -21,7 +21,7 @@ export function TopBar({ canvasCenter }: { canvasCenter(): { x: number; y: numbe
 
   const stepZoom = (dir: 1 | -1) => {
     const z = viewport.zoom;
-    const next = dir > 0 ? ZOOM_STEPS.find((s) => s > z + 1e-6) : [...ZOOM_STEPS].reverse().find((s) => s < z - 1e-6);
+    const next = dir > 0 ? ZOOM_STEPS.find((s) => s > z + 1e-6) : ZOOM_STEPS.toReversed().find((s) => s < z - 1e-6);
     if (next) store.setViewport(zoomAt(viewport, next, canvasCenter()));
   };
 
@@ -43,10 +43,22 @@ export function TopBar({ canvasCenter }: { canvasCenter(): { x: number; y: numbe
 
       <div className="absolute left-[628px] flex items-center gap-2">
         <div className="flex h-[30px] w-[72px] items-center gap-4 rounded-[4px] border border-line bg-sunken px-[10px]">
-          <button type="button" title="Undo (⌘Z)" disabled={!stack.canUndo} onClick={() => store.undo()} className="flex disabled:opacity-40">
+          <button
+            type="button"
+            title="Undo (⌘Z)"
+            disabled={!stack.canUndo}
+            onClick={() => store.undo()}
+            className="flex disabled:opacity-40"
+          >
             <Icon src={undoIcon} w={14} h={12} />
           </button>
-          <button type="button" title="Redo (⌘⇧Z)" disabled={!stack.canRedo} onClick={() => store.redo()} className="flex disabled:opacity-40">
+          <button
+            type="button"
+            title="Redo (⌘⇧Z)"
+            disabled={!stack.canRedo}
+            onClick={() => store.redo()}
+            className="flex disabled:opacity-40"
+          >
             <Icon src={redoIcon} w={14} h={12} />
           </button>
         </div>
@@ -70,7 +82,10 @@ export function TopBar({ canvasCenter }: { canvasCenter(): { x: number; y: numbe
           <Icon src={avatarJt} w={24} h={24} className="absolute left-[18px]" />
           <span className="absolute top-[6px] left-6">JT</span>
         </span>
-        <button type="button" className="ml-4 rounded-[4px] border border-line bg-surface px-[14px] py-[7px] text-12 font-medium text-ink">
+        <button
+          type="button"
+          className="ml-4 rounded-[4px] border border-line bg-surface px-[14px] py-[7px] text-12 font-medium text-ink"
+        >
           Share
         </button>
         <button type="button" className="ml-4 rounded-[4px] bg-accent px-4 py-[7px] text-12 font-semibold text-surface">

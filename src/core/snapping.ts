@@ -119,8 +119,10 @@ function snapAxis(
 
   const found = best as Candidate | null;
   if (found) {
-    const other = axis === 'x' ? [moving.minY, moving.maxY, found.target.minY, found.target.maxY]
-                               : [moving.minX, moving.maxX, found.target.minX, found.target.maxX];
+    const other =
+      axis === 'x'
+        ? [moving.minY, moving.maxY, found.target.minY, found.target.maxY]
+        : [moving.minX, moving.maxX, found.target.minX, found.target.maxX];
     guides.push({ axis, value: found.value, kind: found.kind, from: Math.min(...other), to: Math.max(...other) });
     return found.delta;
   }

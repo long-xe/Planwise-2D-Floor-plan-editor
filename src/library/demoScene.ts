@@ -1,16 +1,25 @@
-import type { Doc, Furniture, Layer, Wall } from '../core/document';
+import type { Doc, Furniture, Layer, Opening, Wall } from '../core/document';
 import { RECT_FOOTPRINT, ellipseFootprint } from '../core/document';
 import type { Vec2 } from '../geometry/vec';
+import { createElectrical } from './electrical';
+import { roomAt } from './rooms';
 
 // "Harbor St. Residence — Unit 4B", reconstructed from the Figma frames
-// (06 Transform & Snap, 07 Multi-select — living room follows 07): drawing
-// px / 50 = metres, origin at the exterior wall corner.
+// (06 Transform & Snap, 07 Multi-select — living room follows 07, 08 adds
+// the Electrical layer): drawing px / 50 = metres, origin at the exterior
+// wall corner.
 
-const layer = (
-  id: string, name: string, color: string, order: number, locked = false,
-): Layer => ({
-  id, name, color, order, locked,
-  visible: true, opacity: 1, includeInPrint: true, snapTargets: true, cacheAsStatic: locked,
+const layer = (id: string, name: string, color: string, order: number, locked = false, opacity = 1): Layer => ({
+  id,
+  name,
+  color,
+  order,
+  locked,
+  opacity,
+  visible: true,
+  includeInPrint: true,
+  snapTargets: true,
+  cacheAsStatic: locked,
 });
 
 // Auto ids start clear of the design's fixed ones (the bed is f_0217).
@@ -18,9 +27,20 @@ let seq = 300;
 const nextId = () => `f_${String(seq++).padStart(4, '0')}`;
 
 function item(
-  name: string, icon: Furniture['icon'], x: number, y: number, w: number, h: number,
+  name: string,
+  icon: Furniture['icon'],
+  x: number,
+  y: number,
+  w: number,
+  h: number,
   opts: {
-    rotation?: number; round?: boolean; id?: string; fill?: string; footprint?: Vec2[]; rug?: boolean; groupId?: string;
+    rotation?: number;
+    round?: boolean;
+    id?: string;
+    fill?: string;
+    footprint?: Vec2[];
+    rug?: boolean;
+    groupId?: string;
   } = {},
 ): Furniture {
   const f: Furniture = {
@@ -36,6 +56,8 @@ function item(
       : { fill: opts.fill ?? '#EDE7DA', fillOpacity: 1, stroke: '#1B2A41', strokeWidth: 1.25 },
   };
   if (opts.groupId) f.groupId = opts.groupId;
+  const room = roomAt(f.transform);
+  if (room) f.room = room;
   return f;
 }
 
@@ -52,23 +74,54 @@ const L_SOFA: Vec2[] = [
   { x: -0.5, y: 0.5 },
 ];
 
-let wallSeq = 1;
-function wall(ax: number, ay: number, bx: number, by: number, thickness: number): Wall {
-  return { kind: 'wall', id: `w_${wallSeq++}`, layerId: 'walls', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness };
+function tagRoom(f: Furniture): Furniture {
+  const room = roomAt(f.transform);
+  return room ? { ...f, room } : f;
 }
+
+let wallSeq = 1;
+type OpeningSpec = Pick<Opening, 'type' | 'offset' | 'width' | 'hinge' | 'swing'>;
+
+/** Openings are collected as walls are declared, so each sits next to its host below. */
+let openings: Opening[] = [];
+
+function wall(ax: number, ay: number, bx: number, by: number, thickness: number, cuts: OpeningSpec[] = []): Wall {
+  const id = `w_${wallSeq++}`;
+  for (const c of cuts) {
+    openings.push({
+      kind: 'opening',
+      id: `o_${String(openings.length + 1).padStart(2, '0')}`,
+      layerId: 'walls',
+      wallId: id,
+      ...c,
+    });
+  }
+  return { kind: 'wall', id, layerId: 'walls', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness };
+}
+
+const pane = (offset: number, width: number): OpeningSpec => ({ type: 'window', offset, width });
+const door = (offset: number, width: number, hinge: 'start' | 'end', swing: 1 | -1): OpeningSpec => ({
+  type: 'door',
+  offset,
+  width,
+  hinge,
+  swing,
+});
 
 export function createDemoDoc(): Doc {
   seq = 300;
   wallSeq = 1;
+  openings = [];
   const walls = [
-    wall(0, 0.12, 12, 0.12, 0.24),
-    wall(0, 8.28, 12, 8.28, 0.24),
-    wall(0.12, 0, 0.12, 8.4, 0.24),
-    wall(11.88, 0, 11.88, 8.4, 0.24),
+    // Doors and windows from the design (openings 20:804–827), offsets along each wall from `a`.
+    wall(0, 0.12, 12, 0.12, 0.24, [pane(1.4, 3.6), pane(8.8, 2.4)]),
+    wall(0, 8.28, 12, 8.28, 0.24, [pane(1.2, 2.6), pane(5.8, 1.0)]),
+    wall(0.12, 0, 0.12, 8.4, 0.24, [door(1.2, 0.8, 'start', -1), pane(2.4, 1.4)]),
+    wall(11.88, 0, 11.88, 8.4, 0.24, [pane(5.0, 2.4)]),
     wall(8, 0.24, 8, 0.8, 0.16),
-    wall(8, 3.4, 8, 8.16, 0.16),
+    wall(8, 3.4, 8, 8.16, 0.16, [door(1.6, 0.8, 'start', -1)]),
     wall(5, 4.68, 5, 8.16, 0.16),
-    wall(0.24, 4.6, 7.92, 4.6, 0.16),
+    wall(0.24, 4.6, 7.92, 4.6, 0.16, [door(3.16, 0.8, 'start', 1), door(5.56, 0.72, 'end', 1)]),
     wall(8.08, 3.8, 11.76, 3.8, 0.16),
   ];
 
@@ -80,12 +133,19 @@ export function createDemoDoc(): Doc {
     item('Coffee table', 'desk', 2.62, 3.56, 1.4, 0.72, { fill: '#F3EEE3' }),
     item('Armchair', 'sofa', 4.68, 3.44, 0.88, 0.88),
     item('Dining table', 'desk', 6.86, 2.32, 1.0, 2.08, { fill: '#F3EEE3', ...dining }),
-    ...([[6.18, 1.63], [6.18, 2.32], [6.18, 3.01], [7.54, 1.63], [7.54, 2.32], [7.54, 3.01]] as const).map(([x, y]) =>
-      item('Dining chair', 'desk', x, y, 0.28, 0.36, { fill: '#F3EEE3', ...dining }),
-    ),
+    ...(
+      [
+        [6.18, 1.63],
+        [6.18, 2.32],
+        [6.18, 3.01],
+        [7.54, 1.63],
+        [7.54, 2.32],
+        [7.54, 3.01],
+      ] as const
+    ).map(([x, y]) => item('Dining chair', 'desk', x, y, 0.28, 0.36, { fill: '#F3EEE3', ...dining })),
     item('TV unit', 'desk', 3.4, 0.46, 2.4, 0.28),
     item('Rug 2.4 × 1.6', 'desk', 3.5, 2.76, 4.6, 2.16, { rug: true }),
-    item('Plant · fiddle leaf', 'desk', 0.72, 0.72, 0.56, 0.56, { round: true }),
+    item('Plant · fiddle leaf', 'plant', 0.72, 0.72, 0.56, 0.56, { round: true }),
     item('Kitchen island', 'desk', 9.76, 2.24, 1.84, 0.8),
     item('Bed — King', 'bed', 2.4, 6.4, 1.8, 2.2, { rotation: 30, id: 'f_0217' }),
     item('Wardrobe', 'desk', 4.42, 6.92, 0.84, 2.24),
@@ -99,8 +159,8 @@ export function createDemoDoc(): Doc {
     item('Kitchen counter', 'desk', 9.92, 0.54, 3.68, 0.6),
     item('Kitchen counter', 'desk', 11.46, 1.96, 0.6, 2.24),
     item('Study armchair', 'sofa', 11.12, 4.44, 0.8, 0.8),
-    item('Plant', 'desk', 7.48, 4.12, 0.44, 0.44, { round: true }),
-    item('Plant', 'desk', 11.32, 5.8, 0.4, 0.4, { round: true }),
+    item('Plant', 'plant', 7.48, 4.12, 0.44, 0.44, { round: true }),
+    item('Plant', 'plant', 11.32, 5.8, 0.4, 0.4, { round: true }),
     item('Desk chair', 'desk', 10.16, 7.04, 0.36, 0.36, { round: true }),
   ];
 
@@ -108,12 +168,14 @@ export function createDemoDoc(): Doc {
     name: 'Harbor St. Residence — Unit 4B',
     // Top of the Layers panel first; `order` is paint order (0 paints first).
     layers: [
-      layer('annotations', 'Annotations', '#E0A526', 3),
+      layer('annotations', 'Annotations', '#E0A526', 4),
+      // Custom layer from the design (08), drawn at 80 %.
+      layer('electrical', 'Electrical', '#2F5DA8', 3, false, 0.8),
       layer('furniture', 'Furniture', '#D9623B', 2),
       layer('walls', 'Walls', '#1B2A41', 1, true),
       layer('grid', 'Grid & guides', '#C9D5E6', 0),
     ],
     groups: [{ id: 'g_0001', name: 'Dining set · 6' }],
-    objects: [...walls, ...furniture.reverse()],
+    objects: [...walls, ...openings, ...furniture.toReversed(), ...createElectrical().map(tagRoom)],
   };
 }

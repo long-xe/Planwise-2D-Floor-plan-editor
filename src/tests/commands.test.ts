@@ -17,7 +17,7 @@ function transformCmd(doc: Doc, kind: TransformKind, id: string, patch: object, 
 
 /** Tiny deterministic PRNG so failures reproduce. */
 function rng(seed: number) {
-  return () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+  return () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
 }
 
 describe('command stack', () => {

@@ -23,13 +23,21 @@ function path(g: CanvasRenderingContext2D, pts: Vec2[]): void {
  * vertices, the even-odd ray from the pointer and its crossings, plus the
  * outline of any other polygon the query had to test.
  */
-export function drawHitRegions(g: CanvasRenderingContext2D, store: EditorStore, report: HitReport, theme: CanvasTheme): void {
+export function drawHitRegions(
+  g: CanvasRenderingContext2D,
+  store: EditorStore,
+  report: HitReport,
+  theme: CanvasTheme,
+): void {
   const v = store.viewport;
   const [first, ...rest] = report.tested;
   g.strokeStyle = theme.tool;
 
   for (const shape of rest) {
-    path(g, shape.polygon.map((p) => worldToScreen(v, p)));
+    path(
+      g,
+      shape.polygon.map((p) => worldToScreen(v, p)),
+    );
     g.lineWidth = 1.25;
     g.stroke();
   }

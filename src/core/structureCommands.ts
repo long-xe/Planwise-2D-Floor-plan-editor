@@ -37,13 +37,21 @@ export class BatchCommand implements Command {
   }
 }
 
-/** Removes objects; undo puts each back at its original paint position. */
+/**
+ * Removes objects; undo puts each back at its original paint position.
+ * A wall takes its doors and windows with it (they can't float free).
+ */
 export class DeleteCommand implements Command {
   readonly type = 'Delete';
   private readonly removed: { index: number; obj: SceneObject }[];
 
-  constructor(doc: Doc, readonly ids: readonly string[], public ts: number = Date.now()) {
+  constructor(
+    doc: Doc,
+    readonly ids: readonly string[],
+    public ts: number = Date.now(),
+  ) {
     const set = new Set(ids);
+    for (const o of doc.objects) if (o.kind === 'opening' && set.has(o.wallId)) set.add(o.id);
     this.removed = doc.objects
       .map((obj, index) => ({ index, obj: structuredClone(obj) }))
       .filter((r) => set.has(r.obj.id));
@@ -58,7 +66,7 @@ export class DeleteCommand implements Command {
   }
 
   execute(doc: Doc): void {
-    const set = new Set(this.ids);
+    const set = new Set(this.removed.map((r) => r.obj.id));
     doc.objects = doc.objects.filter((o) => !set.has(o.id));
   }
 
@@ -103,7 +111,12 @@ export class GroupCommand implements Command {
   readonly type = 'Group';
   private readonly previous: Map<string, string | undefined>;
 
-  constructor(doc: Doc, readonly ids: readonly string[], readonly group: Group, public ts: number = Date.now()) {
+  constructor(
+    doc: Doc,
+    readonly ids: readonly string[],
+    readonly group: Group,
+    public ts: number = Date.now(),
+  ) {
     this.previous = new Map(ids.map((id) => [id, findFurniture(doc, id)?.groupId]));
   }
 
@@ -131,5 +144,57 @@ export class GroupCommand implements Command {
       else f.groupId = prev;
     }
     doc.groups = doc.groups.filter((g) => g.id !== this.group.id);
+  }
+}
+
+/**
+ * Replaces whole objects with edited copies: moving or resizing walls and
+ * their doors and windows. A drag previews through a transaction and lands
+ * as one entry; consecutive edits of the same objects merge.
+ */
+export class EditObjectsCommand implements Command {
+  constructor(
+    readonly type: string,
+    public targets: { from: SceneObject; to: SceneObject }[],
+    public ts: number = Date.now(),
+  ) {}
+
+  describe(): string {
+    return `${this.type}Command(${this.targets.map((t) => t.to.id).join(', ')})`;
+  }
+
+  canExecute(doc: Doc): boolean {
+    return (
+      this.targets.length > 0 &&
+      editable(
+        doc,
+        this.targets.map((t) => t.to.id),
+      )
+    );
+  }
+
+  private apply(doc: Doc, pick: 'from' | 'to'): void {
+    const byId = new Map(this.targets.map((t) => [t.to.id, t[pick]]));
+    doc.objects = doc.objects.map((o) => {
+      const next = byId.get(o.id);
+      return next ? structuredClone(next) : o;
+    });
+  }
+
+  execute(doc: Doc): void {
+    this.apply(doc, 'to');
+  }
+
+  undo(doc: Doc): void {
+    this.apply(doc, 'from');
+  }
+
+  merge(next: Command): boolean {
+    if (!(next instanceof EditObjectsCommand) || next.type !== this.type) return false;
+    if (next.targets.length !== this.targets.length) return false;
+    if (next.targets.some((t, i) => t.to.id !== this.targets[i]!.to.id)) return false;
+    this.targets = this.targets.map((t, i) => ({ from: t.from, to: next.targets[i]!.to }));
+    this.ts = next.ts;
+    return true;
   }
 }

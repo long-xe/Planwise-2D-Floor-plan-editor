@@ -12,6 +12,7 @@ export interface CanvasTheme {
   accent: string;
   tool: string;
   gridMinor: string;
+  glass: string;
   gridMajor: string;
   fontMono: string;
   fontSans: string;
@@ -28,6 +29,7 @@ const VARS: Record<keyof CanvasTheme, string> = {
   accent: '--pw-accent',
   tool: '--pw-tool',
   gridMinor: '--pw-grid-minor',
+  glass: '--pw-glass',
   gridMajor: '--pw-grid-major',
   fontMono: '--pw-font-mono',
   fontSans: '--pw-font-sans',

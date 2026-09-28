@@ -6,6 +6,7 @@ import { RULER_PX } from './render/rulers';
 import { SelectTool } from './tools/SelectTool';
 import { CanvasView } from './ui/CanvasView';
 import { HitDebugPanel } from './ui/HitDebugPanel';
+import { LayerBadges } from './ui/LayerBadges';
 import { LeftPanel } from './ui/LeftPanel';
 import { PropertiesPanel } from './ui/PropertiesPanel';
 import { StatusBar } from './ui/StatusBar';
@@ -16,6 +17,13 @@ import { StoreContext } from './ui/useStore';
 // World origin sits at the plan's exterior corner, placed where the design
 // puts it: 118 × 170 px into the drawing area, which starts after the rulers.
 const INITIAL_PAN = { x: RULER_PX + 118, y: RULER_PX + 170 };
+
+/** Canvas centre in canvas pixels, the anchor for toolbar zoom. */
+function canvasCenter() {
+  const el = document.querySelector('main');
+  const r = el?.getBoundingClientRect();
+  return r ? { x: r.width / 2, y: r.height / 2 } : { x: 0, y: 0 };
+}
 
 export function App() {
   const store = useMemo(() => {
@@ -28,22 +36,17 @@ export function App() {
   }, []);
   const tool = useMemo(() => new SelectTool(), []);
 
-  const canvasCenter = () => {
-    const el = document.querySelector('main');
-    const r = el?.getBoundingClientRect();
-    return r ? { x: r.width / 2, y: r.height / 2 } : { x: 0, y: 0 };
-  };
-
   return (
     <StoreContext.Provider value={store}>
       <div className="grid h-full min-w-[1200px] grid-rows-[var(--spacing-topbar)_1fr_var(--spacing-statusbar)] text-ink">
         <TopBar canvasCenter={canvasCenter} />
-        <div className="grid min-h-0 grid-cols-[var(--spacing-rail)_var(--spacing-left)_1fr_var(--spacing-right)]">
+        <div className="grid min-h-0 grid-cols-[var(--spacing-rail)_auto_1fr_var(--spacing-right)]">
           <ToolRail active={tool.id} />
           <LeftPanel />
           <main className="relative min-w-0 overflow-hidden bg-canvas">
             <CanvasView tool={tool} />
             <HitDebugPanel />
+            <LayerBadges />
           </main>
           <PropertiesPanel />
         </div>

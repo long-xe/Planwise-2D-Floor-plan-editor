@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import type { Furniture, Layer } from '../core/document';
-import { findGroup } from '../core/document';
-import { expandGroups } from '../core/selection';
+import type { Layer } from '../core/document';
+import { layersTopDown } from '../core/document';
+import { type ListRow, listRows } from '../core/layerRows';
 import { aabbOf } from '../geometry/transform';
+import { MoreToggle } from './MoreToggle';
 import { Icon } from './Icon';
 import { useEditor } from './useStore';
 import plusSmall from './icons/plus-small.svg';
@@ -14,26 +15,12 @@ import eyeMuted from './icons/eye-muted.svg';
 import unlock from './icons/unlock.svg';
 import unlockMuted from './icons/unlock-muted.svg';
 import lock from './icons/lock.svg';
-import sofaSmall from './icons/sofa-small.svg';
-import desk from './icons/desk.svg';
-import bedSmall from './icons/bed-small.svg';
-import bath from './icons/bath.svg';
-import deskAccent from './icons/desk-accent.svg';
-import bedAccent from './icons/bed-accent.svg';
-import sofaAccent from './icons/sofa-accent.svg';
-import bathAccent from './icons/bath-accent.svg';
+import eyeOff from './icons/eye-off-badge.svg';
+import { ItemGlyph } from './itemIcons';
+import { LayersManager } from './LayersManager';
+import { cn } from './cn';
 
 const MAX_CHILDREN = 12;
-
-/** Highlighted rows tint the icon accent (design 06/07 selected rows). */
-const ACCENT_ICON: Record<Furniture['icon'], string> = { desk: deskAccent, bed: bedAccent, sofa: sofaAccent, bath: bathAccent };
-
-export const ITEM_ICON: Record<Furniture['icon'], { src: string; w: number; h: number }> = {
-  sofa: { src: sofaSmall, w: 12.8, h: 8 },
-  desk: { src: desk, w: 12.8, h: 8.8 },
-  bed: { src: bedSmall, w: 11.2, h: 10.4 },
-  bath: { src: bath, w: 11.2, h: 8.8 },
-};
 
 export function Tabs({ tabs, active }: { tabs: string[]; active: string }) {
   return (
@@ -41,9 +28,10 @@ export function Tabs({ tabs, active }: { tabs: string[]; active: string }) {
       {tabs.map((t) => (
         <span
           key={t}
-          className={`pb-[9px] text-12 ${
-            t === active ? '-mb-px border-b-2 border-tool font-semibold text-ink' : 'font-medium text-muted'
-          }`}
+          className={cn(
+            'pb-[9px] text-12 font-medium text-muted',
+            t === active && '-mb-px border-b-2 border-tool font-semibold text-ink',
+          )}
         >
           {t}
         </span>
@@ -55,16 +43,26 @@ export function Tabs({ tabs, active }: { tabs: string[]; active: string }) {
 export function LeftPanel() {
   const store = useEditor();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ furniture: true });
-  const layers = [...store.doc.layers].sort((a, b) => b.order - a.order);
+  const layers = layersTopDown(store.doc);
+  // Opening a layer switches to the wide Layers manager (08).
+  if (store.activeLayerId) return <LayersManager />;
 
   return (
-    <aside className="flex min-h-0 flex-col border-r border-line bg-surface">
+    <aside className="flex min-h-0 w-left flex-col border-r border-line bg-surface">
       <Tabs tabs={['Layers', 'Library', 'History']} active="Layers" />
       <div className="flex items-center justify-between px-4 pt-[15px] pb-[4px]">
-        <span className="font-mono text-10 font-medium uppercase tracking-label text-muted">
+        <span className="font-mono text-10 font-medium tracking-label text-muted uppercase">
           Layers · {layers.length}
         </span>
-        <Icon src={plusSmall} w={9.6} h={9.6} className="mr-[3px]" />
+        <button
+          type="button"
+          title="New layer"
+          aria-label="New layer"
+          onClick={() => store.addLayer()}
+          className="mr-[3px] flex"
+        >
+          <Icon src={plusSmall} w={9.6} h={9.6} />
+        </button>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {layers.map((l) => (
@@ -84,28 +82,67 @@ export function LeftPanel() {
 function LayerRow({ layer, expanded, onToggle }: { layer: Layer; expanded: boolean; onToggle(): void }) {
   const store = useEditor();
   const objects = store.doc.objects.filter((o) => o.layerId === layer.id);
-  const rows = objectRows(objects.filter((o): o is Furniture => o.kind === 'furniture'));
-  const shown = rows.slice(0, MAX_CHILDREN);
+  const rows = listRows(store.doc, layer.id);
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? rows : rows.slice(0, MAX_CHILDREN);
 
   return (
     <>
       <div className="flex h-[34px] items-center pr-5 pl-[13px]">
         <Icon src={drag} w={6} h={10.5} />
-        <button type="button" onClick={onToggle} className="ml-[9px] flex w-[6px] items-center justify-center" aria-label="Expand">
-          {objects.length > 0 && (expanded ? <Icon src={chevDown} w={6} h={3} /> : <Icon src={chevRight} w={4} h={8} />)}
+        <button
+          type="button"
+          onClick={onToggle}
+          className="ml-[9px] flex w-[6px] items-center justify-center"
+          aria-label="Expand"
+        >
+          {objects.length > 0 &&
+            (expanded ? <Icon src={chevDown} w={6} h={3} /> : <Icon src={chevRight} w={4} h={8} />)}
         </button>
         <span className="ml-2 size-[10px] rounded-[2px]" style={{ background: layer.color }} />
-        <span className={`ml-2 flex-1 text-12 text-ink ${expanded ? 'font-semibold' : ''}`}>{layer.name}</span>
+        <button
+          type="button"
+          title="Open in Layers manager"
+          onClick={() => store.focusLayer(layer.id)}
+          className={cn(
+            'ml-2 flex-1 text-left text-12 text-ink',
+            !layer.visible && 'text-faint',
+            expanded && 'font-semibold',
+          )}
+        >
+          {layer.name}
+        </button>
         {objects.length > 0 && <span className="w-9 text-right font-mono text-10 text-muted">{objects.length}</span>}
-        <Icon src={eye} w={14.4} h={6.75} className="ml-3" />
-        <Icon src={layer.locked ? lock : unlock} w={9} h={12} className="ml-4" />
+        <button
+          type="button"
+          aria-label={layer.visible ? `Hide ${layer.name}` : `Show ${layer.name}`}
+          onClick={() => store.setLayer('ToggleLayer', layer.id, { visible: !layer.visible })}
+          className="ml-3 flex"
+        >
+          {layer.visible ? <Icon src={eye} w={14.4} h={6.75} /> : <Icon src={eyeOff} w={14.4} h={12} />}
+        </button>
+        <button
+          type="button"
+          aria-label={layer.locked ? `Unlock ${layer.name}` : `Lock ${layer.name}`}
+          onClick={() => store.setLayer('ToggleLayer', layer.id, { locked: !layer.locked })}
+          className="ml-4 flex"
+        >
+          <Icon src={layer.locked ? lock : unlock} w={9} h={12} />
+        </button>
       </div>
       {expanded && (
         // Design leaves 1px above the child list and 3px below it.
         <div className="pt-px pb-[3px]">
-          {shown.map((r) => <ObjectRow key={r.id} row={r} />)}
+          {shown.map((r) => (
+            <ObjectRow key={r.key} row={r} layer={layer} />
+          ))}
           {rows.length > MAX_CHILDREN && (
-            <p className="h-[30px] pt-[6px] pl-[66px] text-11 text-muted">+ {rows.length - MAX_CHILDREN} more</p>
+            <MoreToggle
+              hidden={rows.length - MAX_CHILDREN}
+              open={showAll}
+              onToggle={() => setShowAll((v) => !v)}
+              className="h-[30px] pl-[66px]"
+            />
           )}
         </div>
       )}
@@ -113,55 +150,41 @@ function LayerRow({ layer, expanded, onToggle }: { layer: Layer; expanded: boole
   );
 }
 
-interface ObjectRowData {
-  /** Row key: the object id, or the group id for a group row. */
-  id: string;
-  name: string;
-  icon: Furniture['icon'];
-  /** A member id; selecting it selects the whole group. */
-  pick: string;
-}
-
-/**
- * Topmost first, like the Layers list itself; a group collapses into one
- * row at the position of its topmost member (design: "Dining set · 6").
- */
-function objectRows(items: Furniture[]): ObjectRowData[] {
-  const rows: ObjectRowData[] = [];
-  const seen = new Set<string>();
-  for (let i = items.length - 1; i >= 0; i--) {
-    const f = items[i]!;
-    const key = f.groupId ?? f.id;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    rows.push({ id: key, name: f.name, icon: f.icon, pick: f.id });
-  }
-  return rows;
-}
-
-function ObjectRow({ row }: { row: ObjectRowData }) {
+function ObjectRow({ row, layer }: { row: ListRow; layer: Layer }) {
   const store = useEditor();
-  const members = expandGroups(store.doc, [row.pick]);
-  const selected = members.every((id) => store.selection.includes(id));
-  const icon = ITEM_ICON[row.icon];
-  const name = members.length > 1 ? (findGroup(store.doc, row.id)?.name ?? row.name) : row.name;
+  const selected = row.ids.every((id) => store.selection.includes(id));
+  // Model rule: locked or hidden layers list their pieces but don't select them.
+  const blocked = layer.locked || !layer.visible;
   const onClick = (shift: boolean) => {
-    if (!shift) return store.select(members);
-    store.select(selected ? store.selection.filter((id) => !members.includes(id)) : [...store.selection, ...members]);
+    if (blocked) return;
+    if (!shift) return store.select(row.ids);
+    store.select(selected ? store.selection.filter((id) => !row.ids.includes(id)) : [...store.selection, ...row.ids]);
   };
   return (
     <button
       type="button"
+      aria-disabled={blocked}
+      title={blocked ? `${layer.name} is ${layer.locked ? 'locked' : 'hidden'}: unlock it to select` : undefined}
       onClick={(e) => onClick(e.shiftKey)}
-      className={`relative mx-1 flex h-[30px] w-[252px] items-center rounded-[3px] pr-[19px] pl-[41.6px] text-left ${
-        selected ? 'bg-accent-tint' : 'hover:bg-sunken'
-      }`}
+      className={cn(
+        'relative mx-1 flex h-[30px] w-[252px] items-center rounded-[3px] pr-[19px] pl-[41.6px] text-left',
+        row.indent && 'pl-[57.6px]',
+        blocked ? 'cursor-not-allowed' : selected ? 'bg-accent-tint' : 'hover:bg-sunken',
+      )}
     >
       {selected && <span className="absolute inset-y-0 left-0 w-[2px] bg-accent" />}
-      <Icon src={selected ? ACCENT_ICON[row.icon] : icon.src} w={icon.w} h={icon.h} />
-      <span className={`ml-2 flex-1 text-12 ${selected ? 'font-medium text-accent' : 'text-ink'}`}>{name}</span>
+      <ItemGlyph icon={row.glyph} className={selected ? 'text-accent' : undefined} />
+      <span
+        className={cn(
+          'ml-2 flex-1 truncate text-12 text-ink',
+          selected && 'font-medium text-accent',
+          blocked && 'text-muted',
+        )}
+      >
+        {row.label}
+      </span>
       <Icon src={eyeMuted} w={13.6} h={6.375} />
-      <Icon src={unlockMuted} w={8.5} h={11.4} className="ml-[15px]" />
+      <Icon src={layer.locked ? lock : unlockMuted} w={8.5} h={11.4} className="ml-[15px]" />
     </button>
   );
 }
@@ -173,9 +196,11 @@ function HitTestCard() {
   const box = sel ? aabbOf(sel.transform) : null;
   return (
     <div className="m-4 h-[60px] shrink-0 rounded-[4px] border border-line bg-sunken px-3 pt-[9px]">
-      <p className="font-mono text-9 font-medium uppercase tracking-label-sm text-muted">Hit test</p>
+      <p className="font-mono text-9 font-medium tracking-label-sm text-muted uppercase">Hit test</p>
       <p className="mt-[6px] font-mono text-10 text-ink">
-        {hit?.id ? `${hit.mode === 'bbox' ? 'bbox' : 'polygon'} · ${hit.points} pts · ${hit.ms.toFixed(2)} ms` : 'no hit'}
+        {hit?.id
+          ? `${hit.mode === 'bbox' ? 'bbox' : 'polygon'} · ${hit.points} pts · ${hit.ms.toFixed(2)} ms`
+          : 'no hit'}
       </p>
       <p className="mt-[2px] font-mono text-10 text-muted">
         {box && sel
@@ -192,7 +217,7 @@ function HitTestCard() {
 function ShortcutsCard() {
   return (
     <div className="m-4 h-[70px] shrink-0 rounded-[4px] border border-line bg-sunken px-3 pt-[9px]">
-      <p className="font-mono text-9 font-medium uppercase tracking-label-sm text-muted">Shortcuts</p>
+      <p className="font-mono text-9 font-medium tracking-label-sm text-muted uppercase">Shortcuts</p>
       <p className="mt-[6px] font-mono text-10 whitespace-pre text-muted">{'Shift+click  add / remove'}</p>
       <p className="mt-[3px] font-mono text-10 whitespace-pre text-muted">{'Alt+drag     contain mode'}</p>
     </div>

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  type Transform, aabbOf, handlePosition, localToWorld, resizeFromHandle, rotateTransform, worldToLocal,
+  type Transform,
+  aabbOf,
+  handlePosition,
+  localToWorld,
+  resizeFromHandle,
+  rotateTransform,
+  worldToLocal,
 } from '../geometry/transform';
 
 const bed: Transform = { x: 2.4, y: 6.4, w: 1.8, h: 2.2, rotation: 30, flipX: false };

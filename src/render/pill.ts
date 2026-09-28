@@ -2,7 +2,13 @@ import type { CanvasTheme } from './theme';
 
 /** Label chip: 10 px mono, 6/3 px padding, 3 px radius (design Button/* chips). */
 export function pill(
-  g: CanvasRenderingContext2D, text: string, x: number, y: number, bg: string, theme: CanvasTheme, centered = false,
+  g: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  bg: string,
+  theme: CanvasTheme,
+  centered = false,
 ): void {
   g.font = `500 10px ${theme.fontMono}`;
   const w = Math.ceil(g.measureText(text).width) + 12;

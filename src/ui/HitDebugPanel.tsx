@@ -5,18 +5,23 @@ import { Toggle } from './controls';
 import { Icon } from './Icon';
 import { useEditor } from './useStore';
 import bug from './icons/bug.svg';
+import { cn } from './cn';
+import { objectLabel } from '../core/structure';
 
 function Row({ label, value, miss }: { label: string; value: string; miss?: boolean }) {
   return (
     <div className="flex h-[14px] items-center justify-between">
       <span className="text-11 text-muted">{label}</span>
-      <span className={`font-mono text-[10.5px] leading-[14px] ${miss ? 'text-tool' : 'text-ink'}`}>{value}</span>
+      <span className={cn('font-mono text-[10.5px] leading-[14px] text-ink', miss && 'text-tool')}>{value}</span>
     </div>
   );
 }
 
 function hitLabel(store: ReturnType<typeof useEditor>, r: HitReport): string {
-  if (r.id) return store.hitIndex.get(r.id)?.name ?? r.id;
+  if (r.id) {
+    const o = store.hitIndex.get(r.id);
+    return o ? objectLabel(o) : r.id;
+  }
   // A miss after polygon tests is the interesting case: inside a bbox, outside the shape.
   return r.tested.length ? 'none (outside polygon)' : 'none';
 }
@@ -36,7 +41,9 @@ export function HitDebugPanel() {
       <div className="absolute bottom-[-8px] left-[138px] h-[196px] w-[268px] overflow-hidden rounded-[4px] border border-line bg-surface shadow-float">
         <div className="flex items-center pt-3 pr-3 pl-[14px]">
           <Icon src={bug} w={14} h={13} />
-          <span className="ml-2 flex-1 font-mono text-10 font-medium uppercase tracking-label text-ink">Hit-test debug</span>
+          <span className="ml-2 flex-1 font-mono text-10 font-medium tracking-label text-ink uppercase">
+            Hit-test debug
+          </span>
           <Toggle label="Show hit regions" tone="tool" on onChange={() => store.setHit({ showRegions: false })} />
         </div>
         <div className="absolute inset-x-3 top-[41px] flex flex-col gap-2">
@@ -48,7 +55,9 @@ export function HitDebugPanel() {
           <Row label="cost" value={r ? `${store.hitCostMs.toFixed(3)} ms` : '—'} />
         </div>
         <p className="absolute inset-x-0 bottom-0 h-5 bg-sunken pt-1 pl-3 font-mono text-9 text-muted">
-          {store.hit.mode === 'polygon' ? 'pointInPolygon(p, poly) · even-odd' : 'pointInRect(p, bbox) · no polygon step'}
+          {store.hit.mode === 'polygon'
+            ? 'pointInPolygon(p, poly) · even-odd'
+            : 'pointInRect(p, bbox) · no polygon step'}
         </p>
       </div>
 

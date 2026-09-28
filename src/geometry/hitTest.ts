@@ -64,7 +64,10 @@ export function polygonInsideRect(poly: readonly Vec2[], r: Rect): boolean {
 export function polygonIntersectsRect(poly: readonly Vec2[], r: Rect): boolean {
   if (poly.some((p) => pointInRect(p, r))) return true;
   const corners: Vec2[] = [
-    { x: r.minX, y: r.minY }, { x: r.maxX, y: r.minY }, { x: r.maxX, y: r.maxY }, { x: r.minX, y: r.maxY },
+    { x: r.minX, y: r.minY },
+    { x: r.maxX, y: r.minY },
+    { x: r.maxX, y: r.maxY },
+    { x: r.minX, y: r.maxY },
   ];
   if (corners.some((c) => pointInPolygon(c, poly))) return true;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {

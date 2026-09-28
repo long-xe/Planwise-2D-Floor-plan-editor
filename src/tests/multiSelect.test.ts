@@ -37,7 +37,7 @@ describe('multi-select', () => {
 
   it('distribute leaves equal gaps and keeps the outermost units in place', () => {
     const store = setup();
-    const xs = () => store.units.map((u) => u.bounds).sort((a, b) => a.minX - b.minX);
+    const xs = () => store.units.map((u) => u.bounds).toSorted((a, b) => a.minX - b.minX);
     const [first, , , last] = xs();
     store.distribute('DistributeH');
     const after = xs();
@@ -91,9 +91,14 @@ describe('multi-select', () => {
     const sofa = findFurniture(store.doc, store.selection[0]!)!;
     const x0 = sofa.transform.x;
     store.moveSelectionTo(1, 1);
-    const box = store.units.map((u) => u.bounds).reduce((a, b) => ({
-      minX: Math.min(a.minX, b.minX), minY: Math.min(a.minY, b.minY), maxX: 0, maxY: 0,
-    }));
+    const box = store.units
+      .map((u) => u.bounds)
+      .reduce((a, b) => ({
+        minX: Math.min(a.minX, b.minX),
+        minY: Math.min(a.minY, b.minY),
+        maxX: 0,
+        maxY: 0,
+      }));
     expect(box.minX).toBeCloseTo(1, 9);
     expect(box.minY).toBeCloseTo(1, 9);
     expect(sofa.transform.x).not.toBe(x0);

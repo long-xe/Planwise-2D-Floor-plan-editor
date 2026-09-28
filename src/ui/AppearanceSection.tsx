@@ -1,11 +1,20 @@
 import { type ReactNode, useState } from 'react';
 import type { Furniture } from '../core/document';
+import { cn } from './cn';
 import { Section } from './controls';
 import { useEditor } from './useStore';
 
 /** Inline numeric input that commits on Enter/blur, styled as plain mono text. */
-function InlineNumber({ value, digits, suffix, onCommit }: {
-  value: number; digits: number; suffix: string; onCommit(v: number): void;
+function InlineNumber({
+  value,
+  digits,
+  suffix,
+  onCommit,
+}: {
+  value: number;
+  digits: number;
+  suffix: string;
+  onCommit(v: number): void;
 }) {
   const shown = value.toFixed(digits);
   const [draft, setDraft] = useState<string | null>(null);
@@ -30,12 +39,22 @@ function InlineNumber({ value, digits, suffix, onCommit }: {
   );
 }
 
-/** `pr` differs per row in the design: the opacity ends 6px further in than the stroke width. */
-function ColorRow({ color, label, pr, onColor, children }: {
-  color: string; label: string; pr: string; onColor(c: string): void; children: ReactNode;
+/** Right padding differs per row in the design: the opacity ends 6px further in than the stroke width. */
+function ColorRow({
+  color,
+  label,
+  className,
+  onColor,
+  children,
+}: {
+  color: string;
+  label: string;
+  className?: string;
+  onColor(c: string): void;
+  children: ReactNode;
 }) {
   return (
-    <div className={`flex h-7 items-center rounded-[3px] border border-line bg-sunken pl-[5px] ${pr}`}>
+    <div className={cn('flex h-7 items-center rounded-[3px] border border-line bg-sunken pr-4 pl-[5px]', className)}>
       <label className="relative size-4 cursor-pointer rounded-[2px] border border-ink" style={{ background: color }}>
         <input
           type="color"
@@ -55,9 +74,14 @@ export function AppearanceSection({ f }: { f: Furniture }) {
   const store = useEditor();
   const a = f.appearance;
   return (
-    <Section title="Appearance" pb="pb-[10px]">
+    <Section title="Appearance" className="pb-[10px]">
       <div className="mt-[2px] flex flex-col gap-2">
-        <ColorRow color={a.fill} label="Fill colour" pr="pr-[22px]" onColor={(fill) => store.setAppearance(f.id, { fill })}>
+        <ColorRow
+          color={a.fill}
+          label="Fill colour"
+          className="pr-[22px]"
+          onColor={(fill) => store.setAppearance(f.id, { fill })}
+        >
           <InlineNumber
             value={a.fillOpacity * 100}
             digits={0}
@@ -65,7 +89,7 @@ export function AppearanceSection({ f }: { f: Furniture }) {
             onCommit={(v) => store.setAppearance(f.id, { fillOpacity: Math.min(1, Math.max(0, v / 100)) })}
           />
         </ColorRow>
-        <ColorRow color={a.stroke} label="Stroke colour" pr="pr-4" onColor={(stroke) => store.setAppearance(f.id, { stroke })}>
+        <ColorRow color={a.stroke} label="Stroke colour" onColor={(stroke) => store.setAppearance(f.id, { stroke })}>
           <InlineNumber
             value={a.strokeWidth}
             digits={2}

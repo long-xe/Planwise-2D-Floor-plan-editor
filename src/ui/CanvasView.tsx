@@ -26,8 +26,12 @@ export function CanvasView({ tool }: { tool: Tool }) {
       const r = canvas.getBoundingClientRect();
       const screen = { x: e.clientX - r.left, y: e.clientY - r.top };
       return {
-        screen, world: screenToWorld(store.viewport, screen),
-        shift: e.shiftKey, alt: e.altKey, meta: e.metaKey || e.ctrlKey, button: e.button,
+        screen,
+        world: screenToWorld(store.viewport, screen),
+        shift: e.shiftKey,
+        alt: e.altKey,
+        meta: e.metaKey || e.ctrlKey,
+        button: e.button,
       };
     };
 

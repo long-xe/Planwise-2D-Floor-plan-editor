@@ -12,6 +12,7 @@ import note from './icons/note.svg';
 import grid from './icons/grid.svg';
 import magnet from './icons/magnet.svg';
 import gear from './icons/gear.svg';
+import { cn } from './cn';
 
 interface RailItem {
   id: string;
@@ -51,9 +52,11 @@ export function ToolRail({ active }: { active: string }) {
       title={t.label}
       aria-label={t.label}
       aria-pressed={t.id === active}
-      className={`flex ${size} items-center justify-center rounded-[4px] border ${
-        t.id === active ? 'border-tool-border bg-tool-soft' : 'border-transparent hover:bg-sunken'
-      }`}
+      className={cn(
+        'flex items-center justify-center rounded-[4px] border',
+        size,
+        t.id === active ? 'border-tool-border bg-tool-soft' : 'border-transparent hover:bg-sunken',
+      )}
     >
       <Icon src={t.src} w={t.w} h={t.h} />
     </button>

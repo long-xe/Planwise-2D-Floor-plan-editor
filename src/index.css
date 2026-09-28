@@ -23,6 +23,7 @@
   --color-warning: var(--pw-warning);
 
   --shadow-float: var(--pw-shadow-float);
+  --shadow-drag: var(--pw-shadow-drag);
 
   --font-sans: var(--pw-font-sans);
   --font-mono: var(--pw-font-mono);
@@ -30,6 +31,7 @@
   --spacing-topbar: var(--pw-topbar-h);
   --spacing-rail: var(--pw-rail-w);
   --spacing-left: var(--pw-left-w);
+  --spacing-left-wide: var(--pw-left-wide-w);
   --spacing-right: var(--pw-right-w);
   --spacing-statusbar: var(--pw-statusbar-h);
 }
