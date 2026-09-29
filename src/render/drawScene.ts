@@ -20,7 +20,7 @@ export interface SceneCounters {
 }
 
 /** Grid: minor every 0.4 m, major every 2 m (design grid/minor, grid/major). */
-export function drawGrid(g: CanvasRenderingContext2D, v: Viewport, view: Rect, theme: CanvasTheme): void {
+export function drawGrid(g: Ctx2D, v: Viewport, view: Rect, theme: CanvasTheme): void {
   const s = scaleOf(v);
   const line = (step: number, color: string) => {
     g.beginPath();

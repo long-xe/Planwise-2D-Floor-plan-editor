@@ -16,6 +16,7 @@ import { LayerBadges } from './ui/LayerBadges';
 import { UndoToast } from './ui/UndoToast';
 import { WallToolHint } from './ui/WallToolHint';
 import { PerfHud } from './ui/PerfHud';
+import { ExportModal } from './ui/ExportModal';
 import { LeftPanel } from './ui/LeftPanel';
 import { PropertiesPanel } from './ui/PropertiesPanel';
 import { StatusBar } from './ui/StatusBar';
@@ -86,6 +87,7 @@ export function App() {
           <PropertiesPanel />
         </div>
         <StatusBar />
+        <ExportModal />
       </div>
     </StoreContext.Provider>
   );

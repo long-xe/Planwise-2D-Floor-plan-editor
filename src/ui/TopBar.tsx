@@ -90,7 +90,11 @@ export function TopBar({ canvasCenter }: { canvasCenter(): { x: number; y: numbe
         >
           Share
         </button>
-        <button type="button" className="ml-4 rounded-[4px] bg-accent px-4 py-[7px] text-12 font-semibold text-surface">
+        <button
+          type="button"
+          onClick={() => store.exporter.show(true)}
+          className="ml-4 rounded-[4px] bg-accent px-4 py-[7px] text-12 font-semibold text-surface"
+        >
           Export
         </button>
         <Icon src={gear} w={18} h={18} className="ml-[14px]" />

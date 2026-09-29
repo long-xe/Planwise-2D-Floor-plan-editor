@@ -12,6 +12,7 @@ import type { MeasurePoint } from './measureSnap';
 import type { EditorStore } from './store';
 import { AddObjectsCommand } from './structureCommands';
 import type { Vec2 } from '../geometry/vec';
+import { scaleOf } from './viewport';
 
 /** Measure tool and annotation display settings (design 10, right panel). */
 export interface MeasureSettings {
@@ -124,7 +125,7 @@ export class MeasureState {
     const seg = this.segment;
     const at = seg ? { x: (seg.a.x + seg.b.x) / 2, y: (seg.a.y + seg.b.y) / 2 } : this.draft.hover?.point;
     if (!at) return false;
-    const px = 1 / (this.store.viewport.zoom * 50);
+    const px = 1 / scaleOf(this.store.viewport);
     const note: NoteAnnotation = {
       kind: 'annotation',
       type: 'note',

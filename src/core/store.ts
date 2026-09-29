@@ -15,6 +15,7 @@ import { duplicateCommand, editObjectsCommand, groupCommand, offsetsCommand, res
 import { HistoryController } from './historyController';
 import { ToolState } from './toolState';
 import { PerfState } from './perfState';
+import { ExportState } from './exportState';
 import { HitIndex, type HitReport, hitLogLine } from './picking';
 import { DEFAULT_HIT, type FrameStats, type HitSettings, type ToolFeedback } from './storeTypes';
 import { type SelectionUnit, expandGroups, selectionUnits, unitsBounds } from './selection';
@@ -41,6 +42,8 @@ export class EditorStore {
   readonly tools: ToolState = new ToolState(this);
   /** Perf HUD, renderer switches and frame timing (11). */
   readonly perf: PerfState = new PerfState(this);
+  /** Export & print dialog (12). */
+  readonly exporter: ExportState = new ExportState(this);
   selection: string[] = [];
   /** Layer open in the Layers manager (08): wide left panel, layer in the right panel. */
   activeLayerId: string | null = null;

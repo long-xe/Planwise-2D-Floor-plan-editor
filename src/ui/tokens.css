@@ -34,6 +34,8 @@
   --pw-success: #6e9b7b; /* toggles on, saved, fps ok */
   --pw-success-soft: rgba(110, 155, 123, 0.15); /* Library: "Dragging" badge */
   --pw-warning: #e0a526; /* annotations layer, revision clouds, notes */
+  --pw-scrim: rgba(27, 42, 65, 0.42); /* behind modals (design 12) */
+  --pw-preview: #f4f1ea; /* export preview pane */
   --pw-note: #fbf1d6; /* sticky note paper (design 10) */
   --pw-note-fold: #f2dda4;
   --pw-note-ink: #9a6f0e; /* note header, revision text */

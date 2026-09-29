@@ -32,6 +32,9 @@ export const DEMO_SHEET: SheetInfo = {
   drawn: 'M. Rivera',
   rev: 2,
   date: '28.09.2026',
+  checked: 'J. Tan',
+  revNote: 'bath layout',
+  number: 'A-101',
 };
 
 export function createDemoAnnotations(): Annotation[] {

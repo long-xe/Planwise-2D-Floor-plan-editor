@@ -7,7 +7,7 @@ import {
   formatLength,
   polygonArea,
 } from '../core/annotations';
-import { type Viewport, worldToScreen } from '../core/viewport';
+import { type Viewport, scaleOf, worldToScreen } from '../core/viewport';
 import type { Vec2 } from '../geometry/vec';
 import type { CanvasTheme } from './theme';
 
@@ -75,7 +75,7 @@ function drawRun(g: Ctx2D, run: DimensionRun, v: Viewport, theme: CanvasTheme, s
   if (len < 1) return;
   const u = { x: (b.x - a.x) / len, y: (b.y - a.y) / len };
   const n = { x: u.y, y: -u.x };
-  const off = run.offset * (v.zoom * 50);
+  const off = run.offset * scaleOf(v);
   const q = pts.map((p) => ({ x: p.x + n.x * off, y: p.y + n.y * off }));
   g.strokeStyle = theme.accent;
   g.fillStyle = theme.accent;

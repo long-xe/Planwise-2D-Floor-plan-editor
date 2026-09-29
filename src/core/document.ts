@@ -114,6 +114,10 @@ export interface SheetInfo {
   drawn: string;
   rev: number;
   date: string;
+  /** Printed sheet (design 12): checker, what the revision changed, sheet number. */
+  checked?: string;
+  revNote?: string;
+  number?: string;
 }
 
 export interface Doc {

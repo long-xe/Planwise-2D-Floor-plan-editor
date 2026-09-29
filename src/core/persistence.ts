@@ -53,11 +53,16 @@ export function saveOptions(storage: Storage | null, o: HistoryOptions): void {
   }
 }
 
+/** The project file as JSON: what autosave stores, and what "JSON · project file" exports (12). */
+export function projectJson(doc: Doc, history: StackSnapshot, pretty = false): string {
+  const file: ProjectFile = { version: 1, doc, history: encodeHistory(history), savedAt: Date.now() };
+  return JSON.stringify(file, null, pretty ? 2 : undefined);
+}
+
 export function saveProject(storage: Storage | null, doc: Doc, history: StackSnapshot): boolean {
   if (!storage) return false;
   try {
-    const file: ProjectFile = { version: 1, doc, history: encodeHistory(history), savedAt: Date.now() };
-    storage.setItem(PROJECT_KEY, JSON.stringify(file));
+    storage.setItem(PROJECT_KEY, projectJson(doc, history));
     return true;
   } catch {
     return false;

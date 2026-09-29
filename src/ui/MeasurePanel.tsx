@@ -1,5 +1,6 @@
 import { PRECISIONS, type Terminator, type Units, formatLength } from '../core/annotations';
 import type { MeasureSettings } from '../core/measureState';
+import { scaleOf } from '../core/viewport';
 import { measureAngle } from '../render/measureOverlay';
 import { cn } from './cn';
 import { Section, Segmented, TextButton, Toggle } from './controls';
@@ -74,7 +75,7 @@ function LiveDistance() {
         </p>
         <p className="mt-1 font-mono text-10 text-on-ink-accent opacity-80">
           {seg
-            ? `= ${formatLength(len, other)} · ${Math.round(len * 50 * zoom)} px @ ${Math.round(zoom * 100)}%`
+            ? `= ${formatLength(len, other)} · ${Math.round(len * scaleOf(store.viewport))} px @ ${Math.round(zoom * 100)}%`
             : 'click a first point on the plan'}
         </p>
       </div>

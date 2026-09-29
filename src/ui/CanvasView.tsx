@@ -91,6 +91,8 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
       }
     };
     const keydown = (e: KeyboardEvent) => {
+      // A dialog (Export, 12) owns the keyboard while it's open.
+      if (store.exporter.open) return;
       // F12: Perf HUD (11), even from a text field.
       if (e.key === 'F12') {
         e.preventDefault();
