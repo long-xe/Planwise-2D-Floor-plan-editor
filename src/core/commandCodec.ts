@@ -1,7 +1,15 @@
 import type { HistoryEntry, StackSnapshot } from './commandStack';
 import { type Command, SetAppearanceCommand, TransformCommand } from './commands';
+import { DocPropsCommand } from './docCommands';
 import { AddLayerCommand, DeleteLayerCommand, LayerPropsCommand, ReorderLayerCommand } from './layerCommands';
-import { AddObjectsCommand, BatchCommand, DeleteCommand, EditObjectsCommand, GroupCommand } from './structureCommands';
+import {
+  AddObjectsCommand,
+  BatchCommand,
+  DeleteCommand,
+  EditObjectsCommand,
+  GroupCommand,
+  UngroupCommand,
+} from './structureCommands';
 
 /**
  * Every command class the history can hold, under a stable tag. Tags, not
@@ -14,6 +22,8 @@ const REGISTRY = {
   delete: DeleteCommand,
   add: AddObjectsCommand,
   group: GroupCommand,
+  ungroup: UngroupCommand,
+  docProps: DocPropsCommand,
   edit: EditObjectsCommand,
   layerProps: LayerPropsCommand,
   reorderLayer: ReorderLayerCommand,

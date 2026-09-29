@@ -4,8 +4,9 @@ import type { Doc, Furniture, Group, SceneObject, Wall } from './document';
 import { findFurniture, findGroup, findObject } from './document';
 import { openingsOf } from './structure';
 import { reseatOpenings } from './structureEdit';
-import { type SelectionUnit, unitsBounds } from './selection';
-import { AddObjectsCommand, BatchCommand, EditObjectsCommand, GroupCommand } from './structureCommands';
+import { followWalls, planSnapshot } from './wallFollow';
+import { type SelectionUnit, selectionUnits, unitsBounds } from './selection';
+import { AddObjectsCommand, BatchCommand, EditObjectsCommand, GroupCommand, UngroupCommand } from './structureCommands';
 import { mapTransformBox } from '../geometry/transform';
 
 /** A fresh id for a new object ("w_0010"). */
@@ -26,8 +27,10 @@ function nextId(taken: Iterable<string>, prefix: string): () => string {
   return () => `${prefix}${String(++n).padStart(4, '0')}`;
 }
 
-export function groupCommand(doc: Doc, ids: readonly string[]): GroupCommand | null {
-  if (ids.length < 2) return null;
+/** ⌘G groups furniture only, and only two or more units (a group counts as one). */
+export function groupCommand(doc: Doc, selection: readonly string[]): GroupCommand | null {
+  const ids = selection.filter((id) => !!findFurniture(doc, id));
+  if (selectionUnits(doc, ids).length < 2) return null;
   const id = nextId(
     doc.groups.map((g) => g.id),
     'g_',
@@ -87,6 +90,23 @@ export function offsetsCommand(type: string, offsets: UnitOffset[]): Command | n
   return children.length ? new BatchCommand(type, children, `${offsets.length} objects`) : null;
 }
 
+/** Selection bounds X/Y: everything moves so the bounds' top-left lands at (x, y). */
+export function moveUnitsToCommand(units: readonly SelectionUnit[], x: number, y: number): Command | null {
+  const box = unitsBounds(units);
+  return box
+    ? offsetsCommand(
+        'Move',
+        units.map((unit) => ({ unit, dx: x - box.minX, dy: y - box.minY })),
+      )
+    : null;
+}
+
+/** ⌘⇧G: every group with a piece in the selection dissolves. */
+export function ungroupCommand(doc: Doc, selection: readonly string[]): UngroupCommand | null {
+  const groups = [...new Set(selection.flatMap((id) => findFurniture(doc, id)?.groupId ?? []))];
+  return groups.length ? new UngroupCommand(doc, groups) : null;
+}
+
 /** Selection bounds W/H: every piece re-fitted as its bounds stretch from the top-left corner. */
 export function resizeUnitsCommand(units: readonly SelectionUnit[], w: number, h: number): TransformCommand | null {
   const from = unitsBounds(units);
@@ -103,6 +123,20 @@ export function resizeUnitsCommand(units: readonly SelectionUnit[], w: number, h
   return new TransformCommand('Resize', targets);
 }
 
+/**
+ * The selection onto another layer: one MoveToLayer. Doors and windows
+ * stay with their wall (they move when it does, never on their own).
+ */
+export function moveToLayerCommand(doc: Doc, ids: readonly string[], layerId: string): EditObjectsCommand | null {
+  const moving = new Set(ids.filter((id) => findObject(doc, id)?.kind !== 'opening'));
+  for (const o of doc.objects) if (o.kind === 'opening' && moving.has(o.wallId)) moving.add(o.id);
+  const next = [...moving].flatMap((id) => {
+    const o = findObject(doc, id);
+    return o && o.layerId !== layerId ? [{ ...o, layerId }] : [];
+  });
+  return editObjectsCommand(doc, 'MoveToLayer', next);
+}
+
 /** Edited copies → one command (from = the current objects), or null if nothing changed. */
 export function editObjectsCommand(doc: Doc, type: string, next: readonly SceneObject[]): EditObjectsCommand | null {
   const targets = next.flatMap((to) => {
@@ -115,7 +149,11 @@ export function editObjectsCommand(doc: Doc, type: string, next: readonly SceneO
 /**
  * A reshaped wall plus its re-seated doors and windows: they keep their
  * place on the plan (offsets are measured from `a`) and stay inside it.
+ * Walls joined to it stretch along, and its outlets and switches follow.
  */
 export function wallWithOpenings(doc: Doc, before: Wall, after: Wall): SceneObject[] {
-  return [after, ...reseatOpenings(openingsOf(doc, before.id), before, after)];
+  const own = openingsOf(doc, before.id);
+  const skip = new Set([before.id, ...own.map((o) => o.id)]);
+  const follow = followWalls(planSnapshot(doc), new Map([[after.id, after]]), skip);
+  return [after, ...reseatOpenings(own, before, after), ...follow.map((t) => t.to)];
 }

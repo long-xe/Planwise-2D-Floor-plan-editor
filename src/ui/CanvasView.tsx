@@ -5,7 +5,20 @@ import type { ToolId } from '../core/toolState';
 import type { Tool, ToolContext, ToolPointerEvent } from '../tools/Tool';
 import { useEditorStoreRef } from './useStore';
 
-const TOOL_KEYS: Record<string, ToolId> = { v: 'select', h: 'hand', w: 'wall', f: 'furniture', m: 'measure' };
+const TOOL_KEYS: Record<string, ToolId> = {
+  v: 'select',
+  h: 'hand',
+  w: 'wall',
+  d: 'door',
+  o: 'window',
+  f: 'furniture',
+  t: 'text',
+  l: 'dimension',
+  m: 'measure',
+  n: 'note',
+  r: 'revision',
+  e: 'electrical',
+};
 
 /**
  * Hosts the canvas and forwards input to the active tool. The render loop
@@ -91,8 +104,8 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
       }
     };
     const keydown = (e: KeyboardEvent) => {
-      // A dialog (Export, 12) owns the keyboard while it's open.
-      if (store.exporter.open) return;
+      // A dialog (Export, New plan) owns the keyboard while it's open.
+      if (document.querySelector('[aria-modal="true"]')) return;
       // F12: Perf HUD (11), even from a text field.
       if (e.key === 'F12') {
         e.preventDefault();
@@ -123,11 +136,12 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
       }
       if (mod && e.key.toLowerCase() === 'g') {
         e.preventDefault();
-        store.group();
+        if (e.shiftKey) store.ungroup();
+        else store.group();
         return;
       }
-      // The Wall tool owns Enter / Esc / Backspace while drawing (04).
-      if (store.tools.active === 'wall' && ['Enter', 'Escape', 'Backspace', 'Delete'].includes(e.key)) {
+      // A tool's own keys win over shortcuts (Wall's Backspace, Furniture's R).
+      if (tool().ownsKey?.(e, ctx)) {
         e.preventDefault();
         tool().onKey?.(e, ctx);
         return;
@@ -151,14 +165,29 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
       tool().onKey?.(e, ctx);
     };
     const keyup = (e: KeyboardEvent) => {
+      // Door / Window flip the hinge while Shift is held, so they hear it let go too.
+      if (e.key === 'Shift') tool().onKey?.(e, ctx);
       if (e.code === 'Space') {
         spaceDown = false;
         canvas.style.cursor = tool().cursor;
       }
     };
+    // Switching tools (a key, the rail, a Library drag) mid-gesture rolls the
+    // old tool back: its open drag would otherwise hold the stack.
+    let current = store.tools.active;
+    const unsubscribe = store.subscribe(() => {
+      if (store.tools.active === current) return;
+      const previous = tools[current];
+      current = store.tools.active;
+      previous.cancel(ctx);
+    });
     // Losing focus mid-drag must not leave a half-applied edit behind.
     const blur = () => tool().cancel(ctx);
-    const leave = () => tool().onPointerLeave?.(ctx);
+    const leave = () => {
+      tool().onPointerLeave?.(ctx);
+      store.tools.annotation.setHover(null);
+    };
+    const dblclick = (e: MouseEvent) => tool().onDoubleClick?.(toEvent(e), ctx);
 
     const [tDown, tMove, tUp] = [timed(down), timed(move), timed(up)];
     canvas.addEventListener('pointerdown', tDown);
@@ -166,18 +195,21 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
     canvas.addEventListener('pointerup', tUp);
     canvas.addEventListener('pointercancel', blur);
     canvas.addEventListener('pointerleave', leave);
+    canvas.addEventListener('dblclick', dblclick);
     canvas.addEventListener('wheel', wheel, { passive: false });
     window.addEventListener('keydown', keydown);
     window.addEventListener('keyup', keyup);
     window.addEventListener('blur', blur);
     return () => {
       loop.stop();
+      unsubscribe();
       tool().cancel(ctx);
       canvas.removeEventListener('pointerdown', tDown);
       canvas.removeEventListener('pointermove', tMove);
       canvas.removeEventListener('pointerup', tUp);
       canvas.removeEventListener('pointercancel', blur);
       canvas.removeEventListener('pointerleave', leave);
+      canvas.removeEventListener('dblclick', dblclick);
       canvas.removeEventListener('wheel', wheel);
       window.removeEventListener('keydown', keydown);
       window.removeEventListener('keyup', keyup);

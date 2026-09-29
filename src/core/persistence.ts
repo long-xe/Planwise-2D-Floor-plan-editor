@@ -69,15 +69,23 @@ export function saveProject(storage: Storage | null, doc: Doc, history: StackSna
   }
 }
 
-export function loadProject(storage: Storage | null): { doc: Doc; history: StackSnapshot } | null {
+/** Reads a project file (autosave, or an imported .planwise.json); null if it isn't one. */
+export function parseProject(raw: string): { doc: Doc; history: StackSnapshot } | null {
   try {
-    const raw = storage?.getItem(PROJECT_KEY);
-    if (!raw) return null;
     const file = JSON.parse(raw) as ProjectFile;
-    if (file.version !== 1) return null;
+    if (file.version !== 1 || !Array.isArray(file.doc?.objects) || !Array.isArray(file.doc.layers)) return null;
     return { doc: file.doc, history: decodeHistory(file.history) };
   } catch {
     // A corrupt or outdated file must never stop the editor from opening.
+    return null;
+  }
+}
+
+export function loadProject(storage: Storage | null): { doc: Doc; history: StackSnapshot } | null {
+  try {
+    const raw = storage?.getItem(PROJECT_KEY);
+    return raw ? parseProject(raw) : null;
+  } catch {
     return null;
   }
 }

@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+import { GridSizeSelect } from './GridSize';
 import type { WallAlign } from '../core/document';
 import type { WallAngleOption } from '../core/wallSnap';
 import { cn } from './cn';
@@ -14,7 +16,17 @@ const ALIGN: { value: WallAlign; label: string }[] = [
 ];
 const ANGLES: WallAngleOption[] = [0, 45, 90, 15];
 
-function Row({ label, hint, on, onChange }: { label: string; hint?: string; on: boolean; onChange(v: boolean): void }) {
+function Row({
+  label,
+  hint,
+  on,
+  onChange,
+}: {
+  label: string;
+  hint?: ReactNode;
+  on: boolean;
+  onChange(v: boolean): void;
+}) {
   return (
     <div className="flex h-4 items-center">
       <span className="w-[130px] text-12 text-ink">{label}</span>
@@ -123,7 +135,7 @@ export function WallToolPanel() {
         <div className="mt-4 flex flex-col gap-4">
           <Row
             label="Snap to grid"
-            hint={`${Math.round(store.snap.gridStep * 100)} cm`}
+            hint={<GridSizeSelect />}
             on={store.snap.grid}
             onChange={(grid) => store.setSnap({ grid })}
           />

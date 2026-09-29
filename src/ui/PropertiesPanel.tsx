@@ -1,5 +1,11 @@
 import type { Furniture } from '../core/document';
-import { findLayer } from '../core/document';
+import { findLayer, findObject, isFixture } from '../core/document';
+import { AnnotationPanel } from './AnnotationPanel';
+import { DocumentPanel } from './DocumentPanel';
+import type { RightTab } from '../core/perfState';
+import { LayerSection } from './LayerSection';
+import { CircuitSection, ElectricalPanel } from './ElectricalPanel';
+import { FIXTURES } from '../library/electrical';
 import { normalizeRotation } from '../geometry/transform';
 import { AppearanceSection } from './AppearanceSection';
 import { HistoryInspector } from './HistoryInspector';
@@ -9,6 +15,16 @@ import { StructurePanel } from './StructurePanel';
 import { WallToolPanel } from './WallToolPanel';
 import { FurniturePanel } from './FurniturePanel';
 import { MeasurePanel } from './MeasurePanel';
+import { PlacePanel } from './PlacePanel';
+
+const TAB_LABEL: Record<RightTab, string> = {
+  properties: 'Properties',
+  document: 'Document',
+  performance: 'Performance',
+};
+const TAB_OF: Record<string, RightTab> = { Properties: 'properties', Document: 'document', Performance: 'performance' };
+
+const PLACE_TOOLS = new Set(['door', 'window', 'dimension', 'text', 'note', 'revision']);
 import { PerfPanel } from './PerfPanel';
 import { AlignSection, MultiSelectionHeader, SelectionBoundsSection } from './MultiSelectionPanel';
 import { IconButton, NumberField, Section } from './controls';
@@ -20,7 +36,6 @@ import { useEditor } from './useStore';
 import bed from './icons/bed.svg';
 import rotateIcon from './icons/rotate.svg';
 import flipIcon from './icons/flip.svg';
-import linkIcon from './icons/link.svg';
 import check from './icons/check.svg';
 import { cn } from './cn';
 
@@ -31,22 +46,22 @@ export function PropertiesPanel() {
   const layer = store.activeLayerId ? findLayer(store.doc, store.activeLayerId) : undefined;
   // Walls, doors and windows selected on their own get their own panel.
   const structural = sel.length ? [] : store.selection;
+  const one = store.selection.length === 1 ? findObject(store.doc, store.selection[0]!) : undefined;
+  const annotation = one?.kind === 'annotation' ? one : undefined;
 
   return (
     // The design draws the divider over the panel's first column (content starts
     // at +16), so use an inset shadow rather than a border that takes up width.
     <aside className="flex min-h-0 flex-col overflow-y-auto bg-surface shadow-[inset_1px_0_0_var(--pw-border)]">
-      {store.perf.hud ? (
-        <Tabs
-          tabs={['Properties', 'Performance']}
-          active={store.perf.rightTab === 'performance' ? 'Performance' : 'Properties'}
-          onSelect={(t) => store.perf.setRightTab(t === 'Performance' ? 'performance' : 'properties')}
-        />
-      ) : (
-        <Tabs tabs={['Properties', 'Document']} active="Properties" />
-      )}
+      <Tabs
+        tabs={store.perf.hud ? ['Properties', 'Document', 'Performance'] : ['Properties', 'Document']}
+        active={TAB_LABEL[store.perf.rightTab]}
+        onSelect={(t) => store.perf.setRightTab(TAB_OF[t] ?? 'properties')}
+      />
       {store.perf.hud && store.perf.rightTab === 'performance' ? (
         <PerfPanel />
+      ) : store.perf.rightTab === 'document' ? (
+        <DocumentPanel />
       ) : !layer && store.history.tab === 'history' ? (
         <HistoryInspector />
       ) : !layer && store.tools.active === 'wall' ? (
@@ -55,8 +70,14 @@ export function PropertiesPanel() {
         <FurniturePanel />
       ) : !layer && store.tools.active === 'measure' ? (
         <MeasurePanel />
+      ) : !layer && store.tools.active === 'electrical' ? (
+        <ElectricalPanel />
+      ) : !layer && PLACE_TOOLS.has(store.tools.active) ? (
+        <PlacePanel tool={store.tools.active as Parameters<typeof PlacePanel>[0]['tool']} />
       ) : layer ? (
         <LayerPanel layer={layer} />
+      ) : annotation ? (
+        <AnnotationPanel a={annotation} />
       ) : structural.length ? (
         <StructurePanel ids={structural} />
       ) : sel.length > 1 ? (
@@ -65,12 +86,15 @@ export function PropertiesPanel() {
           <MultiSelectionHeader />
           <AlignSection />
           <SelectionBoundsSection />
+          <LayerSection ids={store.selection} />
           <HitDetectionSection />
         </>
       ) : (
         <>
           {f ? <ObjectHeader f={f} /> : <EmptyHeader />}
           {f && <TransformSection f={f} />}
+          {f && isFixture(f.icon) && FIXTURES[f.icon].wired && <CircuitSection f={f} />}
+          {f && <LayerSection ids={[f.id]} />}
           <SnappingSection />
           {f && <AppearanceSection f={f} />}
           {!f && <HitDetectionSection />}
@@ -147,12 +171,15 @@ function TransformSection({ f }: { f: Furniture }) {
           >
             <Icon src={flipIcon} w={14} h={16} />
           </IconButton>
+          {/* Vertical flip = horizontal flip turned 180° (same pixels), so the model
+              keeps one flip flag. Lock aspect lives on the checkbox below. */}
           <IconButton
-            label="Lock aspect ratio"
-            active={store.lockAspect}
-            onClick={() => store.setLockAspect(!store.lockAspect)}
+            label="Flip vertical"
+            onClick={() =>
+              store.applyTransform('Flip', f.id, { flipX: !t.flipX, rotation: normalizeRotation(t.rotation + 180) })
+            }
           >
-            <Icon src={linkIcon} w={17} h={17} />
+            <Icon src={flipIcon} w={14} h={16} className="rotate-90" />
           </IconButton>
         </div>
       </div>

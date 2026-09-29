@@ -39,6 +39,15 @@ export function LeftPanel() {
     furniture: { furniture: true },
     // Measuring opens the Annotations layer, where a kept dimension lands (design 10).
     measure: { annotations: true },
+    // Doors and windows cut into walls; the annotation tools add to Annotations.
+    door: { walls: true },
+    window: { walls: true },
+    text: { annotations: true },
+    dimension: { annotations: true },
+    note: { annotations: true },
+    revision: { annotations: true },
+    // Fixtures land on Electrical (08).
+    electrical: { electrical: true },
   });
   const tool = store.tools.active;
   const expanded = open[tool];

@@ -1,7 +1,9 @@
 import { type AlignKind, type DistributeKind, alignOffsets, distributeOffsets } from './align';
 import { CommandStack } from './commandStack';
 import { type Command, SetAppearanceCommand, TransformCommand, type TransformKind } from './commands';
-import type { Appearance, Doc, Furniture, SceneObject } from './document';
+import type { Appearance, Doc, Furniture, SceneObject, SheetInfo } from './document';
+import { editSheetCommand, renamePlanCommand } from './docCommands';
+import { StoreFeeds } from './storeFeeds';
 import { findFurniture, findLayer, findObject, isEditable, layersTopDown } from './document';
 import {
   AddLayerCommand,
@@ -11,14 +13,23 @@ import {
   type LayerPropsType,
   newLayer,
 } from './layerCommands';
-import { duplicateCommand, editObjectsCommand, groupCommand, offsetsCommand, resizeUnitsCommand } from './editActions';
+import {
+  duplicateCommand,
+  editObjectsCommand,
+  groupCommand,
+  moveToLayerCommand,
+  moveUnitsToCommand,
+  ungroupCommand,
+  offsetsCommand,
+  resizeUnitsCommand,
+} from './editActions';
 import { HistoryController } from './historyController';
 import { ToolState } from './toolState';
 import { PerfState } from './perfState';
 import { ExportState } from './exportState';
-import { HitIndex, type HitReport, hitLogLine } from './picking';
-import { DEFAULT_HIT, type FrameStats, type HitSettings, type ToolFeedback } from './storeTypes';
-import { type SelectionUnit, expandGroups, selectionUnits, unitsBounds } from './selection';
+import { HitIndex } from './picking';
+import type { ToolFeedback } from './storeTypes';
+import { type SelectionUnit, expandGroups, selectionUnits } from './selection';
 import { DEFAULT_SNAP, type SnapSettings } from './snapping';
 import { DeleteCommand } from './structureCommands';
 import { type Viewport, createViewport } from './viewport';
@@ -27,13 +38,11 @@ import type { Transform } from '../geometry/transform';
 export type { FrameStats, HitSettings, ToolFeedback } from './storeTypes';
 export { DEFAULT_HIT } from './storeTypes';
 
-type Listener = () => void;
-
 /**
  * The single editor store. Plain TS: React subscribes to it, the render loop
  * polls `dirty`. Document mutation happens only inside commands.
  */
-export class EditorStore {
+export class EditorStore extends StoreFeeds {
   readonly doc: Doc;
   readonly stack: CommandStack;
   /** History screen state (09): tab, picked entry, toast, options, autosave. */
@@ -51,28 +60,10 @@ export class EditorStore {
   snap: SnapSettings = { ...DEFAULT_SNAP };
   lockAspect = true;
   feedback: ToolFeedback = { guides: [], rotateLabel: null, resizing: false, marquee: null };
-  hit: HitSettings = { ...DEFAULT_HIT };
-  /** Result of the last click pick (Hit test card, status bar). */
-  lastHit: HitReport | null = null;
-  /** Result of the latest hover pick (debug panel, hit-region overlay). */
-  hover: HitReport | null = null;
-  /**
-   * Running mean of pick cost. Browsers quantise performance.now() (100 µs
-   * without cross-origin isolation) while one pick takes a few µs, so a
-   * single sample reads 0 or 0.1; the average of many converges on the truth.
-   */
-  hitCostMs = 0;
-  stats: FrameStats = { fps: 0, frameMs: 0, cursor: { x: 0, y: 0 }, cache: 'none', layerDraws: {}, perf: null };
-
-  /** Set on any visible change; the render loop clears it after drawing. */
-  dirty = true;
-  private version = 0;
-  private listeners = new Set<Listener>();
-  private statsListeners = new Set<Listener>();
-  private hoverListeners = new Set<Listener>();
   private index: HitIndex | null = null;
 
-  constructor(doc: Doc, storage: Storage | null = null) {
+  constructor(doc: Doc, storage: Storage | null = null, open: 'restore' | 'replace' = 'restore') {
+    super();
     this.doc = doc;
     this.stack = new CommandStack(doc, () => {
       this.index = null;
@@ -86,7 +77,7 @@ export class EditorStore {
       this.changed();
     });
     // After the stack: it may restore a saved project into `doc` and the stack.
-    this.history = new HistoryController(this, storage);
+    this.history = new HistoryController(this, storage, open);
   }
 
   /** Broadphase index, rebuilt on first use after any document change. */
@@ -94,50 +85,8 @@ export class EditorStore {
     return (this.index ??= new HitIndex(this.doc));
   }
 
-  subscribe = (fn: Listener): (() => void) => {
-    this.listeners.add(fn);
-    return () => this.listeners.delete(fn);
-  };
-
-  getVersion = (): number => this.version;
-
-  /** Separate, throttled channel so per-frame numbers don't re-render panels. */
-  subscribeStats = (fn: Listener): (() => void) => {
-    this.statsListeners.add(fn);
-    return () => this.statsListeners.delete(fn);
-  };
-
-  getStats = (): FrameStats => this.stats;
-
-  /** Hover picks fire on every pointer move; only the debug panel listens. */
-  subscribeHover = (fn: Listener): (() => void) => {
-    this.hoverListeners.add(fn);
-    return () => this.hoverListeners.delete(fn);
-  };
-
-  getHover = (): HitReport | null => this.hover;
-
-  private sampleCost(r: HitReport): void {
-    this.hitCostMs = this.hitCostMs === 0 ? r.ms : this.hitCostMs * 0.95 + r.ms * 0.05;
-    this.perf.monitor.addHitTest(r.ms);
-  }
-
-  setHover(report: HitReport | null): void {
-    this.hover = report;
-    if (report) this.sampleCost(report);
-    if (this.hit.showRegions || this.hit.showBroadphase) this.dirty = true;
-    for (const fn of this.hoverListeners) fn();
-  }
-
-  publishStats(stats: FrameStats): void {
-    this.stats = stats;
-    for (const fn of this.statsListeners) fn();
-  }
-
-  changed(): void {
-    this.dirty = true;
-    this.version++;
-    for (const fn of this.listeners) fn();
+  protected recordPick(ms: number): void {
+    this.perf.monitor.addHitTest(ms);
   }
 
   // ── Selection & view (not document state, so not undoable) ─────────
@@ -194,11 +143,6 @@ export class EditorStore {
     if (this.stack.execute(new DeleteLayerCommand(this.doc, id)) && wasOpen && next) this.focusLayer(next.id);
   }
 
-  setHit(patch: Partial<HitSettings>): void {
-    this.hit = { ...this.hit, ...patch };
-    this.changed();
-  }
-
   setViewport(v: Viewport): void {
     this.viewport = v;
     this.changed();
@@ -217,12 +161,6 @@ export class EditorStore {
   setFeedback(f: Partial<ToolFeedback>): void {
     this.feedback = { ...this.feedback, ...f };
     this.dirty = true;
-  }
-
-  setLastHit(hit: HitReport | null): void {
-    this.lastHit = hit;
-    if (hit) this.sampleCost(hit);
-    if (hit && this.hit.logTimings) console.debug(hitLogLine(hit, this.hitCostMs));
   }
 
   // ── Document edits (always through commands) ───────────────────────
@@ -252,14 +190,7 @@ export class EditorStore {
 
   /** Selection bounds X/Y: move everything so the bounds' top-left lands there. */
   moveSelectionTo(x: number, y: number): void {
-    const box = unitsBounds(this.units);
-    if (box)
-      this.run(
-        offsetsCommand(
-          'Move',
-          this.units.map((unit) => ({ unit, dx: x - box.minX, dy: y - box.minY })),
-        ),
-      );
+    this.run(moveUnitsToCommand(this.units, x, y));
   }
 
   /** Selection bounds W/H: stretch from the top-left corner. */
@@ -272,9 +203,27 @@ export class EditorStore {
     this.run(editObjectsCommand(this.doc, type, next));
   }
 
+  /** Top bar / Document tab: the plan's name (blank keeps the old one). */
+  renamePlan(name: string): void {
+    this.run(renamePlanCommand(this.doc, name));
+  }
+
+  /** Document tab: title block fields; a plan without one gets it on first edit. */
+  editSheet(patch: Partial<SheetInfo>): void {
+    this.run(editSheetCommand(this.doc, patch));
+  }
+
+  moveToLayer(layerId: string): void {
+    this.run(moveToLayerCommand(this.doc, this.selection, layerId));
+  }
+
   group(): void {
-    const cmd = groupCommand(this.doc, this.selection);
-    if (cmd) this.stack.execute(cmd);
+    this.run(groupCommand(this.doc, this.selection));
+  }
+
+  /** ⌘⇧G: every group in the selection dissolves; its pieces stay selected. */
+  ungroup(): void {
+    this.run(ungroupCommand(this.doc, this.selection));
   }
 
   duplicate(): void {
@@ -283,7 +232,7 @@ export class EditorStore {
   }
 
   deleteSelection(): void {
-    if (!this.selection.length) return;
+    if (!this.selection.length || this.tools.annotation.deleteFocusedRoom()) return;
     if (this.stack.execute(new DeleteCommand(this.doc, this.selection))) this.select([]);
   }
 

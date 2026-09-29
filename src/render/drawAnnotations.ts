@@ -7,8 +7,10 @@ import {
   formatLength,
   polygonArea,
 } from '../core/annotations';
+import { CALLOUT_H, NOTE_BOX as NOTE, calloutWidth, revisionLabel } from '../core/annotationLayout';
 import { type Viewport, scaleOf, worldToScreen } from '../core/viewport';
 import type { Vec2 } from '../geometry/vec';
+import { canvasMeasure } from './textMeasure';
 import type { CanvasTheme } from './theme';
 
 type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -16,7 +18,6 @@ type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 const TICK_PX = 12;
 const SLASH_PX = 3;
 const ARROW_PX = 6;
-const NOTE = { w: 210, h: 74, fold: 20, text: 176 };
 const SCALLOP_PX = 14;
 const LEADER_DASH = [3, 2];
 const NO_DASH: number[] = [];
@@ -100,12 +101,9 @@ function drawRun(g: Ctx2D, run: DimensionRun, v: Viewport, theme: CanvasTheme, s
   }
 }
 
-/** Screen box of a callout (its text sets the width). */
+/** Screen box of a callout (its text sets the width; picking uses the same layout). */
 function calloutBox(g: Ctx2D, title: string, body: string, theme: CanvasTheme): { w: number; h: number } {
-  g.font = `600 11px ${theme.fontSans}`;
-  const tw = g.measureText(title).width;
-  g.font = `400 10px ${theme.fontSans}`;
-  return { w: Math.ceil(Math.max(tw, g.measureText(body).width)) + 20, h: 48 };
+  return { w: calloutWidth(title, body, canvasMeasure(g, theme)), h: CALLOUT_H };
 }
 
 function nearestOnRect(p: Vec2, x: number, y: number, w: number, h: number): Vec2 {
@@ -127,7 +125,7 @@ function wrap(g: Ctx2D, text: string, width: number): string[] {
 }
 
 /** Scallops bulging outward along each edge of a clockwise-or-not outline. */
-function cloudPath(g: Ctx2D, pts: Vec2[]): void {
+export function cloudPath(g: Ctx2D, pts: Vec2[]): void {
   let area = 0;
   for (let i = 0; i < pts.length; i++) {
     const a = pts[i]!;
@@ -251,6 +249,14 @@ export function drawAnnotation(
     wrap(g, a.text, NOTE.text).forEach((line, i) => g.fillText(line, box.x + 10, box.y + 25 + i * 15));
     return 6;
   }
+  if (a.type === 'text') {
+    const p = worldToScreen(v, a.at);
+    g.fillStyle = theme.ink;
+    g.font = `500 ${a.size}px ${theme.fontSans}`;
+    g.textBaseline = 'top';
+    g.fillText(a.text, p.x, p.y);
+    return 1;
+  }
   // Revision cloud with its Δ tag.
   const pts = a.cloud.map((p) => worldToScreen(v, p));
   const tag = worldToScreen(v, a.tag);
@@ -282,6 +288,6 @@ export function drawAnnotation(
   g.textBaseline = 'middle';
   g.fillStyle = theme.noteInk;
   g.font = `500 10.5px ${theme.fontSans}`;
-  g.fillText(`Rev ${a.rev} · ${a.text}`, tag.x + 38, tag.y + 18);
+  g.fillText(revisionLabel(a.rev, a.text), tag.x + 38, tag.y + 18);
   return 5;
 }

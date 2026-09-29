@@ -6,6 +6,8 @@ export interface SnapSettings {
   grid: boolean;
   /** Grid step in metres (design: 20 cm). */
   gridStep: number;
+  /** With the grid off, positions still round to this (New plan "Position snap"); 0 = free. */
+  positionStep: number;
   walls: boolean;
   smartGuides: boolean;
   objects: boolean;
@@ -17,12 +19,19 @@ export interface SnapSettings {
 export const DEFAULT_SNAP: SnapSettings = {
   grid: true,
   gridStep: 0.2,
+  positionStep: 0,
   walls: true,
   smartGuides: true,
   objects: false,
   angleStep: 15,
   tolerancePx: 8,
 };
+
+/** Grid sizes offered in the editor and the New plan dialog (design 03). */
+export const GRID_STEPS: readonly number[] = [0.1, 0.2, 0.5, 1];
+
+/** "20 cm", "1 m". */
+export const gridLabel = (step: number) => (step >= 1 ? `${+step.toFixed(2)} m` : `${Math.round(step * 100)} cm`);
 
 export function snapAngle(deg: number, step: number): number {
   return Math.round(deg / step) * step;
@@ -130,5 +139,6 @@ function snapAxis(
     // Grid snaps the box centre, which is the X/Y the user types.
     return snapToGrid(mMid, s.gridStep) - mMid;
   }
+  if (s.positionStep > 0) return snapToGrid(mMid, s.positionStep) - mMid;
   return 0;
 }

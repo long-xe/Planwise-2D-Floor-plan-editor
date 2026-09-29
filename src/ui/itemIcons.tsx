@@ -16,6 +16,7 @@ import AnnoCallout from './icons/anno-callout.svg?react';
 import AnnoNote from './icons/anno-note.svg?react';
 import AnnoCloud from './icons/anno-cloud.svg?react';
 import Ruler from './icons/ruler.svg?react';
+import TextIcon from './icons/text.svg?react';
 
 interface Glyph {
   Svg: FC<SVGProps<SVGSVGElement>>;
@@ -51,6 +52,7 @@ const ITEM_ICON: Record<GlyphKey, Glyph> = {
   note: { Svg: AnnoNote, w: 10, h: 11 },
   revision: { Svg: AnnoCloud, w: 12, h: 8 },
   measure: { Svg: Ruler, w: 13, h: 13, size: { width: 13, height: 13 } },
+  text: { Svg: TextIcon, w: 11, h: 12, size: { width: 11, height: 12 } },
 };
 
 /**

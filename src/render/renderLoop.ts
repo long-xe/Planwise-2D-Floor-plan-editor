@@ -108,10 +108,13 @@ export class RenderLoop {
   private viewKey(): string {
     const { store } = this;
     const v = store.viewport;
-    const layers = store.doc.layers.map((l) => `${l.id}:${l.order}:${+l.visible}:${+l.locked}:${l.opacity}`).join();
+    // Colour too: fixtures and circuit wires paint in their layer's colour.
+    const layers = store.doc.layers
+      .map((l) => `${l.id}:${l.order}:${+l.visible}:${+l.locked}:${l.opacity}:${l.color}`)
+      .join();
     const o = store.perf.options;
     const m = store.tools.measure.settings;
-    return `${v.panX},${v.panY},${v.zoom},${this.width},${this.height},${this.dpr},${store.tools.wall.autoJoin},${layers},${store.activeLayerId},${o.staticCache}${o.culling}${o.batching},${m.units}${m.precision}${m.terminator}${m.showAreas}`;
+    return `${v.panX},${v.panY},${v.zoom},${this.width},${this.height},${this.dpr},${store.tools.wall.autoJoin},${layers},${store.activeLayerId},${o.staticCache}${o.culling}${o.batching},${m.units}${m.precision}${m.terminator}${m.showAreas},${store.snap.gridStep}`;
   }
 
   private rectOf = (t: Transform): ScreenRect => {

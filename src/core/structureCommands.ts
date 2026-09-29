@@ -1,5 +1,5 @@
 import type { Command } from './commands';
-import type { Doc, Group, SceneObject } from './document';
+import type { Doc, Group, Layer, SceneObject } from './document';
 import { findFurniture, findLayer, findObject, isEditable } from './document';
 
 const editable = (doc: Doc, ids: readonly string[]) =>
@@ -77,13 +77,19 @@ export class DeleteCommand implements Command {
   }
 }
 
-/** Adds new objects (and their groups) on top of the paint order: Duplicate, AddWall. */
+/**
+ * Adds new objects (and their groups) on top of the paint order: Duplicate,
+ * AddWall. `layers` are created with them when the plan lacks their home
+ * (the first fixture on a plan without an Electrical layer) — one entry,
+ * one undo for both.
+ */
 export class AddObjectsCommand implements Command {
   constructor(
     readonly type: string,
     readonly objects: SceneObject[],
     private readonly groups: Group[],
     public ts: number = Date.now(),
+    readonly layers: Layer[] = [],
   ) {}
 
   get ids(): string[] {
@@ -96,13 +102,16 @@ export class AddObjectsCommand implements Command {
 
   /** Model rule: nothing lands on a locked or hidden layer. */
   canExecute(doc: Doc): boolean {
+    // `?? []`: history saved before `layers` existed decodes without it.
+    const added = this.layers ?? [];
     return this.objects.every((o) => {
-      const layer = findLayer(doc, o.layerId);
+      const layer = findLayer(doc, o.layerId) ?? added.find((l) => l.id === o.layerId);
       return !!layer && layer.visible && !layer.locked;
     });
   }
 
   execute(doc: Doc): void {
+    for (const l of this.layers ?? []) if (!findLayer(doc, l.id)) doc.layers.push({ ...l });
     doc.groups.push(...this.groups.map((g) => ({ ...g })));
     doc.objects.push(...this.objects.map((o) => structuredClone(o)));
   }
@@ -112,13 +121,20 @@ export class AddObjectsCommand implements Command {
     const groups = new Set(this.groups.map((g) => g.id));
     doc.objects = doc.objects.filter((o) => !ids.has(o.id));
     doc.groups = doc.groups.filter((g) => !groups.has(g.id));
+    const layers = new Set((this.layers ?? []).map((l) => l.id));
+    doc.layers = doc.layers.filter((l) => !layers.has(l.id));
   }
 }
 
-/** ⌘G: members join one new group (existing groups are merged into it). */
+/**
+ * ⌘G: members join one new group. Groups merged whole into it are
+ * removed (their records would otherwise linger with no members); undo
+ * brings them back.
+ */
 export class GroupCommand implements Command {
   readonly type = 'Group';
   private readonly previous: Map<string, string | undefined>;
+  private readonly emptied: Group[];
 
   constructor(
     doc: Doc,
@@ -127,6 +143,11 @@ export class GroupCommand implements Command {
     public ts: number = Date.now(),
   ) {
     this.previous = new Map(ids.map((id) => [id, findFurniture(doc, id)?.groupId]));
+    const joining = new Set(ids);
+    this.emptied = doc.groups
+      .filter((g) => doc.objects.every((o) => o.kind !== 'furniture' || o.groupId !== g.id || joining.has(o.id)))
+      .filter((g) => [...this.previous.values()].includes(g.id))
+      .map((g) => ({ ...g }));
   }
 
   describe(): string {
@@ -143,6 +164,9 @@ export class GroupCommand implements Command {
       const f = findFurniture(doc, id);
       if (f) f.groupId = this.group.id;
     }
+    // `?? []`: history saved before `emptied` existed decodes without it.
+    const gone = new Set((this.emptied ?? []).map((g) => g.id));
+    doc.groups = doc.groups.filter((g) => !gone.has(g.id));
   }
 
   undo(doc: Doc): void {
@@ -154,6 +178,55 @@ export class GroupCommand implements Command {
       else f.groupId = prev;
     }
     doc.groups = doc.groups.filter((g) => g.id !== this.group.id);
+    doc.groups.push(...(this.emptied ?? []).map((g) => ({ ...g })));
+  }
+}
+
+/** ⌘⇧G: the selected groups dissolve; their members stay where they are, selected. */
+export class UngroupCommand implements Command {
+  readonly type = 'Ungroup';
+  readonly groups: Group[];
+  private readonly members: [string, string][];
+
+  constructor(
+    doc: Doc,
+    groupIds: readonly string[],
+    public ts: number = Date.now(),
+  ) {
+    const ids = new Set(groupIds);
+    this.groups = doc.groups.filter((g) => ids.has(g.id)).map((g) => ({ ...g }));
+    this.members = doc.objects.flatMap((o): [string, string][] =>
+      o.kind === 'furniture' && o.groupId && ids.has(o.groupId) ? [[o.id, o.groupId]] : [],
+    );
+  }
+
+  get ids(): string[] {
+    return this.members.map(([id]) => id);
+  }
+
+  describe(): string {
+    return `UngroupCommand(${this.groups.map((g) => g.id).join(', ')})`;
+  }
+
+  canExecute(doc: Doc): boolean {
+    return this.groups.length > 0 && editable(doc, this.ids);
+  }
+
+  execute(doc: Doc): void {
+    for (const [id] of this.members) {
+      const f = findFurniture(doc, id);
+      if (f) delete f.groupId;
+    }
+    const gone = new Set(this.groups.map((g) => g.id));
+    doc.groups = doc.groups.filter((g) => !gone.has(g.id));
+  }
+
+  undo(doc: Doc): void {
+    doc.groups.push(...this.groups.map((g) => ({ ...g })));
+    for (const [id, group] of this.members) {
+      const f = findFurniture(doc, id);
+      if (f) f.groupId = group;
+    }
   }
 }
 
@@ -173,13 +246,18 @@ export class EditObjectsCommand implements Command {
     return `${this.type}Command(${this.targets.map((t) => t.to.id).join(', ')})`;
   }
 
+  /** The objects' layers, and any layer they move onto (Move to layer), must be editable. */
   canExecute(doc: Doc): boolean {
     return (
       this.targets.length > 0 &&
       editable(
         doc,
         this.targets.map((t) => t.to.id),
-      )
+      ) &&
+      this.targets.every((t) => {
+        const layer = findLayer(doc, t.to.layerId);
+        return !!layer && layer.visible && !layer.locked;
+      })
     );
   }
 

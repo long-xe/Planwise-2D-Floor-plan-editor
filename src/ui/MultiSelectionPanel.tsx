@@ -86,6 +86,7 @@ export function MultiSelectionHeader() {
 export function AlignSection() {
   const store = useEditor();
   const n = store.units.length;
+  const grouped = store.units.some((u) => u.isGroup);
   return (
     <Section title="Align" className="pb-[10px]">
       <div className="-mt-[2px] flex gap-[5px]">
@@ -118,6 +119,11 @@ export function AlignSection() {
       >
         {'Group selection   ⌘G'}
       </TextButton>
+      {grouped && (
+        <TextButton className="mt-[6px] h-[30px] w-full whitespace-pre" onClick={() => store.ungroup()}>
+          {'Ungroup   ⇧⌘G'}
+        </TextButton>
+      )}
       <div className="mt-[10px] flex gap-1">
         <TextButton className="h-[30px] flex-1" onClick={() => store.duplicate()}>
           Duplicate

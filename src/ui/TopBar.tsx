@@ -1,8 +1,8 @@
 import { zoomAt } from '../core/viewport';
 import { Icon } from './Icon';
 import { useEditor } from './useStore';
-import logoMark from './icons/logo-mark.svg';
-import logoDot from './icons/logo-dot.svg';
+import { LogoMenu } from './LogoMenu';
+import { PlanName } from './PlanName';
 import chev from './icons/chev.svg';
 import savedDot from './icons/saved-dot.svg';
 import undoIcon from './icons/undo.svg';
@@ -29,15 +29,11 @@ export function TopBar({ canvasCenter }: { canvasCenter(): { x: number; y: numbe
 
   return (
     <header className="relative flex h-topbar items-center border-b border-line bg-surface pr-[13px] pl-4">
-      <span className="relative size-6 rounded-[3px] bg-accent">
-        <Icon src={logoMark} w={12} h={12} className="absolute top-[6px] left-[6px]" />
-        <Icon src={logoDot} w={3} h={3} className="absolute top-[13.5px] left-[13.5px]" />
-      </span>
-      <span className="ml-2 text-16 font-bold text-ink">Planwise</span>
+      <LogoMenu />
       <span className="mx-4 h-5 w-px bg-line" />
       <nav className="flex items-center text-13 whitespace-pre">
         <span className="text-muted">{'Plans  /'}</span>
-        <span className="ml-1.5 font-semibold text-ink">{store.doc.name}</span>
+        <PlanName />
         <Icon src={chev} w={6} h={3} className="mr-[17px] ml-[9px]" />
       </nav>
       {save.saved ? <Icon src={savedDot} w={6} h={6} /> : <span className="size-[6px] rounded-full bg-warning" />}

@@ -54,6 +54,7 @@ const ANNOTATION_LABEL: Record<Annotation['type'], string> = {
   callout: 'Callouts',
   note: 'Notes',
   revision: 'Revision clouds',
+  text: 'Text labels',
 };
 
 /** Right panel "Contents": counts by kind, plus circuits for electrical layers. */
@@ -108,6 +109,9 @@ export function layerSignature(doc: Doc, layer: Layer): number {
   const mix = (n: number) => {
     h = (Math.imul(h, 31) + Math.round(n * 1000)) | 0;
   };
+  const mixText = (s: string) => {
+    for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0;
+  };
   mix(layer.color.length + parseInt(layer.color.slice(1), 16));
   for (const o of doc.objects) {
     if (o.layerId !== layer.id) continue;
@@ -134,6 +138,10 @@ export function layerSignature(doc: Doc, layer: Layer): number {
       mix(o.appearance.strokeWidth);
       mix(o.appearance.fillOpacity);
       mix(o.appearance.fill.length + parseInt(o.appearance.fill.slice(1), 16));
+      // Outline colour, the rug dash, and circuit wiring all change pixels too.
+      mixText(o.appearance.stroke);
+      mix(o.appearance.dashed ? 1 : 0);
+      mixText(o.circuit ?? '');
     }
   }
   return h;

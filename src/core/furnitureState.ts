@@ -3,7 +3,7 @@ import { type Placement, type PlacementRules, DEFAULT_RULES } from './placement'
 import type { EditorStore } from './store';
 import type { Vec2 } from '../geometry/vec';
 import { type CatalogItem, type Category, CATALOG, catalogItem } from '../library/catalog';
-import { roomAt } from '../library/rooms';
+import { roomOf } from './rooms';
 
 /** The piece following the pointer: where it is, and where it would land. */
 export interface Ghost {
@@ -25,7 +25,8 @@ export class FurnitureState {
   /** Manual rotation (R), used when auto-rotate is off. */
   rotation = 0;
   query = '';
-  category: Category | 'all' = 'all';
+  /** 'electrical' shows the fixtures, which the Electrical tool places. */
+  category: Category | 'all' | 'electrical' = 'all';
   /** Bumped by ⌘K; the search box focuses when it changes. */
   focusSeq = 0;
   ghost: Ghost | null = null;
@@ -80,7 +81,7 @@ export class FurnitureState {
     this.store.changed();
   }
 
-  setSearch(patch: { query?: string; category?: Category | 'all' }): void {
+  setSearch(patch: { query?: string; category?: Category | 'all' | 'electrical' }): void {
     Object.assign(this, patch);
     this.store.changed();
   }
@@ -111,7 +112,7 @@ export class FurnitureState {
       appearance: { ...item.appearance, fill: this.fillOf(item) },
       catalogId: item.id,
     };
-    const room = roomAt(at.transform);
+    const room = roomOf(this.store.doc, at.transform);
     if (room) f.room = room;
     return f;
   }

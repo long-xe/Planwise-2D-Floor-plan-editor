@@ -7,12 +7,12 @@ import { Section, Segmented, TextButton, Toggle } from './controls';
 import { ItemGlyph } from './itemIcons';
 import { useEditor, useMeasureDraft } from './useStore';
 
-const UNITS: { value: Units; label: string }[] = [
+export const UNITS: { value: Units; label: string }[] = [
   { value: 'metric', label: 'Metric (m)' },
   { value: 'imperial', label: 'Imperial (ft-in)' },
 ];
 
-const TERMINATORS: { value: Terminator; label: string }[] = [
+export const TERMINATORS: { value: Terminator; label: string }[] = [
   { value: 'tick', label: 'Arch tick' },
   { value: 'arrow', label: 'Arrow' },
   { value: 'dot', label: 'Dot' },
@@ -25,7 +25,7 @@ const TOGGLES: { key: keyof MeasureSettings; label: string }[] = [
 ];
 
 /** The three end styles, drawn as the design's buttons show them. */
-function TerminatorGlyph({ kind }: { kind: Terminator }) {
+export function TerminatorGlyph({ kind }: { kind: Terminator }) {
   return (
     <svg width={50} height={8} viewBox="0 0 50 8" aria-hidden className="overflow-visible">
       <line x1={3} x2={47} y1={4} y2={4} stroke="currentColor" strokeWidth={1} />

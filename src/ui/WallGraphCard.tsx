@@ -2,6 +2,7 @@ import type { Wall } from '../core/document';
 import { buildWallGraph } from '../geometry/walls';
 import { ItemGlyph } from './itemIcons';
 import { useEditor, useWallDraft } from './useStore';
+import { roomOf } from '../core/rooms';
 import { wallName } from '../library/wallNames';
 
 function Line({ label, value }: { label: string; value: string }) {
@@ -39,7 +40,8 @@ export function DrawingRow() {
   const d = useWallDraft();
   if (!d?.placing) return null;
   const { thickness, align } = store.tools.wall;
-  const name = wallName({ kind: 'wall', id: '_draft', layerId: 'walls', a: d.start, b: d.end, thickness, align });
+  const draft = { kind: 'wall' as const, id: '_draft', layerId: 'walls', a: d.start, b: d.end, thickness, align };
+  const name = wallName(draft, (p) => roomOf(store.doc, p));
   return (
     <div className="mx-3 mt-px flex h-7 items-center rounded-[3px] border border-dashed border-tool-border bg-tool-tint pr-[7px] pl-[35px]">
       <ItemGlyph icon="wall" className="text-tool" />

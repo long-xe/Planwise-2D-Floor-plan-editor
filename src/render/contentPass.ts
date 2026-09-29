@@ -84,7 +84,7 @@ export class ContentPainter {
     g.fillStyle = theme.canvas;
     g.fillRect(r.x, r.y, r.w, r.h);
     // Plans without a grid layer (the stress plan) still show the grid.
-    if (findLayer(doc, 'grid')?.visible ?? true) drawGrid(g, v, area.shown, theme);
+    if (findLayer(doc, 'grid')?.visible ?? true) drawGrid(g, v, area.shown, theme, store.snap.gridStep);
     out.drawStatic += performance.now() - t;
 
     const pass = (view: Rect, only: ReadonlySet<string> | null): LayerPass => ({

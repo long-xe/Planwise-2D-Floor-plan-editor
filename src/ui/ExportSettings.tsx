@@ -7,9 +7,11 @@ import {
   type PaperSize,
   type ScaleOption,
   type SheetElements,
+  printedLayers,
 } from '../core/exportOptions';
 import { cn } from './cn';
 import { Icon } from './Icon';
+import { MonoSegments } from './MonoSegments';
 import { useEditor } from './useStore';
 import check from './icons/check.svg';
 import Png from './icons/fmt-png.svg?react';
@@ -78,44 +80,12 @@ function Check({
   );
 }
 
-/** A mono segmented row (Orientation, Scale): the active option white with an accent outline. */
-function MonoSegments<T extends string | number>({
-  options,
-  value,
-  onChange,
-  className,
-}: {
-  options: readonly { id: T; label: string }[];
-  value: T;
-  onChange(v: T): void;
-  className?: string;
-}) {
-  return (
-    <div role="radiogroup" className={cn('flex h-8 rounded-[3px] border border-line bg-sunken p-px', className)}>
-      {options.map((o) => (
-        <button
-          key={String(o.id)}
-          type="button"
-          role="radio"
-          aria-checked={o.id === value}
-          onClick={() => onChange(o.id)}
-          className={cn(
-            'flex-1 rounded-[2px] border border-transparent font-mono text-12 text-muted',
-            o.id === value && 'border-accent bg-surface font-medium text-accent',
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 /** Right half of the Export dialog (design 12): format, paper, scale, layers, sheet elements. */
 export function ExportSettings() {
   const store = useEditor();
   const ex = store.exporter;
   const o = ex.options;
+  const printed = printedLayers(store.doc, o);
   const count = (id: string) => store.doc.objects.filter((x) => x.layerId === id).length;
   return (
     <div className="min-h-0 overflow-y-auto px-7 pt-[17px] pb-6">
@@ -189,7 +159,7 @@ export function ExportSettings() {
             .toReversed()
             .toSorted((a, b) => Number(a.id === 'grid') - Number(b.id === 'grid'))
             .map((l) => (
-              <Check key={l.id} label={l.name} on={!!o.layers[l.id]} onChange={(on) => ex.setLayer(l.id, on)}>
+              <Check key={l.id} label={l.name} on={!!printed[l.id]} onChange={(on) => ex.setLayer(l.id, on)}>
                 <span className="ml-[10px] size-[10px] shrink-0 rounded-[2px]" style={{ background: l.color }} />
                 <span className="ml-2 flex-1 text-13 text-ink">{l.name}</span>
                 <span className="font-mono text-10 text-muted">

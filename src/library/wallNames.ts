@@ -1,7 +1,6 @@
 import type { Wall } from '../core/document';
 import { wallFaces } from '../geometry/walls';
 import type { Vec2 } from '../geometry/vec';
-import { roomAt } from './rooms';
 
 const cap = (s: string) => s[0]!.toUpperCase() + s.slice(1);
 
@@ -10,7 +9,7 @@ const cap = (s: string) => s[0]!.toUpperCase() + s.slice(1);
  * two rooms (the upper or left one first), "Exterior · North" when the
  * other side is outside, "Wall" when neither side is a known room.
  */
-export function wallName(w: Wall): string {
+export function wallName(w: Wall, roomAt: (p: Vec2) => string | undefined): string {
   const dx = w.b.x - w.a.x;
   const dy = w.b.y - w.a.y;
   const len = Math.hypot(dx, dy) || 1;

@@ -28,6 +28,7 @@ const ANNOTATION_KIND: Record<Annotation['type'], string> = {
   callout: 'Callout',
   note: 'Note',
   revision: 'Revision cloud',
+  text: 'Text',
 };
 
 /** Short kind name, the same for every piece of that kind ("Door", "Exterior wall"). */

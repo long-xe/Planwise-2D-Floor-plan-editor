@@ -9,7 +9,8 @@ import { type WallSnapResult, rayOnWall, snapWallPoint } from '../core/wallSnap'
 import { screenLengthToWorld } from '../core/viewport';
 import type { Vec2 } from '../geometry/vec';
 import { wallName } from '../library/wallNames';
-import type { Tool, ToolContext, ToolPointerEvent } from './Tool';
+import { roomOf } from '../core/rooms';
+import { DRAW_KEYS, type Tool, type ToolContext, type ToolPointerEvent } from './Tool';
 
 /** Design: "Snap to endpoints · 12 px". */
 const ENDPOINT_PX = 12;
@@ -91,6 +92,11 @@ export class WallTool implements Tool {
 
   onPointerUp(): void {}
 
+  /** Enter / Esc / Backspace drive the chain, never the selection. */
+  ownsKey(e: KeyboardEvent): boolean {
+    return DRAW_KEYS.has(e.key);
+  }
+
   onKey(e: KeyboardEvent, ctx: ToolContext): void {
     const { store } = ctx;
     const chain = store.tools.chain;
@@ -151,7 +157,7 @@ export class WallTool implements Tool {
       height,
       align,
     };
-    const w: Wall = { ...draft, name: wallName(draft) };
+    const w: Wall = { ...draft, name: wallName(draft, (p) => roomOf(store.doc, p)) };
     const cmd = new AddObjectsCommand('AddWall', [w], []);
     if (!store.stack.execute(cmd)) return false;
     this.added.push({ cmd, id: w.id });

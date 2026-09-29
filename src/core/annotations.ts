@@ -70,7 +70,16 @@ export interface RevisionAnnotation extends AnnotationBase {
   text: string;
 }
 
-export type Annotation = DimensionAnnotation | AreaAnnotation | CalloutAnnotation | NoteAnnotation | RevisionAnnotation;
+/** A plain label (Text tool): top-left at `at`, `size` px on screen. */
+export interface TextAnnotation extends AnnotationBase {
+  type: 'text';
+  at: Vec2;
+  text: string;
+  size: number;
+}
+
+export type Annotation =
+  DimensionAnnotation | AreaAnnotation | CalloutAnnotation | NoteAnnotation | RevisionAnnotation | TextAnnotation;
 
 /** Shoelace area of a simple polygon, m². */
 export function polygonArea(pts: readonly Vec2[]): number {

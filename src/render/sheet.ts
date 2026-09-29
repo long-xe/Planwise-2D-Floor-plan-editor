@@ -1,6 +1,6 @@
 import type { AnnotationStyle } from '../core/annotations';
 import type { Doc } from '../core/document';
-import type { ExportOptions, SheetLayout } from '../core/exportOptions';
+import { type ExportOptions, type SheetLayout, printedLayers } from '../core/exportOptions';
 import type { Viewport } from '../core/viewport';
 import { drawGrid, drawLayer } from './drawScene';
 import type { CanvasTheme } from './theme';
@@ -198,10 +198,11 @@ export function drawSheet(
   g.beginPath();
   g.rect(mm(area.minX), mm(area.minY), mm(area.maxX - area.minX), mm(area.maxY - area.minY));
   g.clip();
-  if (o.layers.grid) drawGrid(g, v, view, theme);
+  const shown = printedLayers(printed, o);
+  if (shown.grid) drawGrid(g, v, view, theme);
   const out = { drawn: 0, culled: 0, calls: 0 };
   for (const layer of printed.layers.toSorted((a, b) => a.order - b.order)) {
-    if (!o.layers[layer.id]) continue;
+    if (!shown[layer.id]) continue;
     g.globalAlpha = layer.opacity;
     drawLayer(g, printed, layer, { v, view, theme, dpr, out, mitre: true, only: null, batch: null, annot: style });
     g.globalAlpha = 1;

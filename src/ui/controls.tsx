@@ -80,6 +80,54 @@ export function NumberField({ label, value, unit, digits = 2, focused, disabled,
 }
 
 /**
+ * Words field in the same sunken frame: commits on Enter or blur (a
+ * multiline one takes ⇧Enter for new lines), Esc puts the text back, and
+ * blank text never commits.
+ */
+export function TextField({
+  label,
+  value,
+  multiline,
+  className,
+  onFocus,
+  onCommit,
+}: {
+  label: string;
+  value: string;
+  multiline?: boolean;
+  className?: string;
+  onFocus?(): void;
+  onCommit(v: string): void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    if (draft === null) return;
+    setDraft(null);
+    if (draft.trim() && draft !== value) onCommit(draft);
+  };
+  const props = {
+    'aria-label': label,
+    value: draft ?? value,
+    onFocus,
+    onChange: (e: React.ChangeEvent<HTMLInputElement & HTMLTextAreaElement>) => setDraft(e.target.value),
+    onBlur: commit,
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement & HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !(multiline && e.shiftKey)) {
+        e.preventDefault();
+        e.currentTarget.blur();
+      }
+      if (e.key === 'Escape') setDraft(null);
+    },
+    className: cn(
+      'w-full rounded-[3px] border border-line bg-sunken px-[7px] text-12 text-ink outline-none focus:border-accent',
+      multiline ? 'resize-none py-[5px] leading-4' : 'h-7',
+      className,
+    ),
+  };
+  return multiline ? <textarea rows={3} {...props} /> : <input {...props} />;
+}
+
+/**
  * 28 × 16 pill switch (design Snapping toggles). `tool` tone marks debug
  * switches that change what the canvas draws (Show hit regions, 07).
  */

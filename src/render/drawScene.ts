@@ -19,18 +19,33 @@ export interface SceneCounters {
   calls: number;
 }
 
-/** Grid: minor every 0.4 m, major every 2 m (design grid/minor, grid/major). */
-export function drawGrid(g: Ctx2D, v: Viewport, view: Rect, theme: CanvasTheme): void {
+/** Minor grid lines never get closer than this on screen: the step doubles until they don't. */
+const GRID_MIN_PX = 16;
+
+/** The drawn grid for a snap step at a scale: minor spacing, and a major line every 5. */
+export function gridSpacing(step: number, pxPerM: number): { minor: number; major: number } {
+  let minor = step;
+  while (minor * pxPerM < GRID_MIN_PX) minor *= 2;
+  return { minor, major: minor * 5 };
+}
+
+/**
+ * The drafting grid for the plan's grid size (default 20 cm): at 100 % the
+ * minor lines land every 0.4 m and the major every 2 m, as designed;
+ * zooming in reveals the finer steps, zooming out thins them out.
+ */
+export function drawGrid(g: Ctx2D, v: Viewport, view: Rect, theme: CanvasTheme, step = 0.2): void {
   const s = scaleOf(v);
-  const line = (step: number, color: string) => {
+  const line = (every: number, color: string) => {
     g.beginPath();
-    for (let x = Math.ceil(view.minX / step) * step; x <= view.maxX; x += step) {
-      const sx = Math.round(x * s + v.panX) + 0.5;
+    // Integer steps, so long runs don't drift off the grid through float error.
+    for (let i = Math.ceil(view.minX / every); i * every <= view.maxX; i++) {
+      const sx = Math.round(i * every * s + v.panX) + 0.5;
       g.moveTo(sx, view.minY * s + v.panY);
       g.lineTo(sx, view.maxY * s + v.panY);
     }
-    for (let y = Math.ceil(view.minY / step) * step; y <= view.maxY; y += step) {
-      const sy = Math.round(y * s + v.panY) + 0.5;
+    for (let i = Math.ceil(view.minY / every); i * every <= view.maxY; i++) {
+      const sy = Math.round(i * every * s + v.panY) + 0.5;
       g.moveTo(view.minX * s + v.panX, sy);
       g.lineTo(view.maxX * s + v.panX, sy);
     }
@@ -38,9 +53,9 @@ export function drawGrid(g: Ctx2D, v: Viewport, view: Rect, theme: CanvasTheme):
     g.lineWidth = 1;
     g.stroke();
   };
-  // Skip the minor grid once it would be denser than 8 px.
-  if (0.4 * s >= 8) line(0.4, theme.gridMinor);
-  line(2, theme.gridMajor);
+  const { minor, major } = gridSpacing(step, s);
+  line(minor, theme.gridMinor);
+  line(major, theme.gridMajor);
 }
 
 /** One layer draw's inputs: where, what's in view, and how to paint it. */

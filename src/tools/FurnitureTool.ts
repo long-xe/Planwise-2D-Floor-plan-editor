@@ -49,6 +49,11 @@ export class FurnitureTool implements Tool {
     ctx.store.tools.furniture.setGhost(null);
   }
 
+  /** R turns the ghost; without this, R would arm the Revision cloud tool. */
+  ownsKey(e: KeyboardEvent): boolean {
+    return e.key.toLowerCase() === 'r' && !e.metaKey && !e.ctrlKey && !e.altKey;
+  }
+
   onKey(e: KeyboardEvent, ctx: ToolContext): void {
     const { store } = ctx;
     const fs = store.tools.furniture;

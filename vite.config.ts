@@ -18,6 +18,7 @@ export default defineConfig({
           '#2F5DA8': 'currentColor',
           '#1B2A41': 'currentColor',
           '#D9623B': 'currentColor',
+          '#6E9B7B': 'currentColor',
         },
       },
     }),

@@ -1,11 +1,26 @@
+import { AnnotationEditState } from './annotationState';
 import type { WallAlign } from './document';
+import { ElectricalState } from './electricalState';
 import { FurnitureState } from './furnitureState';
 import { MeasureState } from './measureState';
+import { PlaceState } from './placeState';
 import type { EditorStore } from './store';
 import type { WallAngleOption, WallSnapKind } from './wallSnap';
 import type { Vec2 } from '../geometry/vec';
 
-export type ToolId = 'select' | 'hand' | 'wall' | 'furniture' | 'measure';
+export type ToolId =
+  | 'select'
+  | 'hand'
+  | 'wall'
+  | 'door'
+  | 'window'
+  | 'furniture'
+  | 'text'
+  | 'dimension'
+  | 'measure'
+  | 'note'
+  | 'revision'
+  | 'electrical';
 
 /** Wall tool settings (right panel, design 04). */
 export interface WallSettings {
@@ -58,11 +73,20 @@ export class ToolState {
   readonly furniture: FurnitureState;
   /** Measure tool and annotation settings (10). */
   readonly measure: MeasureState;
+  /** Door, Window, Dimension, Text and Note tools. */
+  readonly place: PlaceState;
+  /** Select tool on annotations: clicked piece, hover, inline editor. */
+  readonly annotation: AnnotationEditState;
+  /** Electrical tool: armed fixture, circuit, preview. */
+  readonly electrical: ElectricalState;
   private draftListeners = new Set<() => void>();
 
   constructor(private readonly store: EditorStore) {
     this.furniture = new FurnitureState(store);
     this.measure = new MeasureState(store);
+    this.place = new PlaceState(store);
+    this.annotation = new AnnotationEditState(store);
+    this.electrical = new ElectricalState(store);
   }
 
   /** The draft changes on every pointer move: only its readouts listen, not whole panels. */
@@ -81,6 +105,9 @@ export class ToolState {
     this.furniture.setGhost(null);
     if (this.measure.draft.a || this.measure.draft.hover)
       this.measure.setDraft({ a: null, b: null, fixed: false, hover: null });
+    this.place.reset();
+    this.annotation.reset();
+    this.electrical.reset();
     // The Furniture tool works from the Library tab (design 05).
     if (id === 'furniture') this.store.history.setTab('library');
     this.store.changed();

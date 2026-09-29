@@ -5,6 +5,7 @@ import { hostWall, kindName, objectLabel, wallLength } from '../core/structure';
 import { fitOpening, moveWallEnd, setWallLength } from '../core/structureEdit';
 import { NumberField, Section, TextButton } from './controls';
 import { ItemGlyph } from './itemIcons';
+import { LayerSection } from './LayerSection';
 import { useEditor } from './useStore';
 
 const m = (v: number) => v.toFixed(2);
@@ -101,10 +102,11 @@ export function StructurePanel({ ids }: { ids: string[] }) {
           {host && <OpeningFields o={one} host={host} />}
         </Section>
       )}
+      <LayerSection ids={ids} />
       <Section title="Edit">
         <p className="text-11 leading-[15px] text-muted">
-          Moving walls and sliding doors or windows arrive with Draw Walls. Deleting a wall removes its openings too (⌘Z
-          restores both).
+          Drag to move; drag an end or a jamb to resize. Walls joined to it stretch along and its outlets follow.
+          Deleting a wall removes its doors and windows too (⌘Z restores both).
         </p>
         <TextButton danger className="mt-3 h-8 w-full" onClick={() => store.deleteSelection()}>
           Delete

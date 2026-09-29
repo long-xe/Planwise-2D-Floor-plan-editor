@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+import { GridSizeSelect } from './GridSize';
 import type { AngleStep } from '../core/snapping';
 import { Section, Segmented, Toggle } from './controls';
 import { Slider } from './Slider';
@@ -7,7 +9,17 @@ const ANGLES: AngleStep[] = [5, 15, 45, 90];
 const TOL_MIN = 1;
 const TOL_MAX = 20;
 
-function Row({ label, hint, on, onChange }: { label: string; hint?: string; on: boolean; onChange(v: boolean): void }) {
+function Row({
+  label,
+  hint,
+  on,
+  onChange,
+}: {
+  label: string;
+  hint?: ReactNode;
+  on: boolean;
+  onChange(v: boolean): void;
+}) {
   return (
     <div className="flex h-4 items-center">
       <span className="w-[110px] text-12 text-ink">{label}</span>
@@ -24,12 +36,7 @@ export function SnappingSection() {
   return (
     <Section title="Snapping" className="pb-[18px]">
       <div className="mt-[2px] flex flex-col gap-4">
-        <Row
-          label="Snap to grid"
-          hint={`${Math.round(s.gridStep * 100)} cm`}
-          on={s.grid}
-          onChange={(grid) => store.setSnap({ grid })}
-        />
+        <Row label="Snap to grid" hint={<GridSizeSelect />} on={s.grid} onChange={(grid) => store.setSnap({ grid })} />
         <Row
           label="Snap to walls"
           hint={`${s.tolerancePx} px`}

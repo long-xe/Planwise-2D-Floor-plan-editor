@@ -11,7 +11,10 @@ import { drawRedoPreview } from './historyPreview';
 import { drawWallOverlay } from './wallOverlay';
 import { drawGhostOverlay } from './ghostOverlay';
 import { drawMeasureOverlay } from './measureOverlay';
+import { drawPlaceOverlay } from './placeOverlay';
 import { drawStructureSelection } from './structureOverlay';
+import { drawAnnotationSelection } from './annotationOverlay';
+import { drawCircuitHighlight, drawFixturePreview } from './fixtureOverlay';
 import { pill } from './pill';
 import type { CanvasTheme } from './theme';
 
@@ -36,11 +39,17 @@ export function drawOverlay(g: CanvasRenderingContext2D, store: EditorStore, vie
     drawMultiSelection(g, store, frame.box, frame.padded, theme);
   }
   if (store.activeLayerId) drawLockedOutlines(g, store, theme);
-  if (selecting) drawStructureSelection(g, store, theme);
+  if (selecting) {
+    drawStructureSelection(g, store, theme);
+    drawAnnotationSelection(g, store, theme);
+    drawCircuitHighlight(g, store, theme);
+  }
   drawRedoPreview(g, store, theme);
   drawWallOverlay(g, store, theme);
   drawGhostOverlay(g, store, theme);
   drawMeasureOverlay(g, store, theme);
+  drawPlaceOverlay(g, store, theme);
+  drawFixturePreview(g, store, theme);
   const mq = store.feedback.marquee;
   if (mq) drawMarquee(g, store, mq.rect, theme);
   // Hover debugging only while idle: during a drag the report is stale.

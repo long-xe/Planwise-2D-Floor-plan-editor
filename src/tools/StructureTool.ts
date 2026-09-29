@@ -4,6 +4,7 @@ import { findObject, isEditable } from '../core/document';
 import type { EditorStore } from '../core/store';
 import { hostWall, openingsOf, wallLength } from '../core/structure';
 import { EditObjectsCommand } from '../core/structureCommands';
+import { type PlanSnapshot, followWalls, planSnapshot } from '../core/wallFollow';
 import { alongWall, moveJamb, moveWallEnd, reseatOpenings, snapAlong } from '../core/structureEdit';
 import { worldToScreen } from '../core/viewport';
 import { openingShape } from '../geometry/openings';
@@ -59,7 +60,7 @@ export function structureSizeLabel(o: SceneObject): string | null {
 
 type State =
   | { kind: 'idle' }
-  | { kind: 'wallEnd'; part: 'a' | 'b'; start: Wall; openings: Opening[]; tx: Transaction }
+  | { kind: 'wallEnd'; part: 'a' | 'b'; start: Wall; openings: Opening[]; plan: PlanSnapshot; tx: Transaction }
   | { kind: 'jamb'; part: 'start' | 'end'; start: Opening; host: Wall; tx: Transaction };
 
 /**
@@ -79,7 +80,14 @@ export class StructureTool {
     const o = findObject(store.doc, h.id);
     if (o?.kind === 'wall' && (h.part === 'a' || h.part === 'b')) {
       const openings = openingsOf(store.doc, o.id).map((x) => structuredClone(x));
-      this.state = { kind: 'wallEnd', part: h.part, start: structuredClone(o), openings, tx: store.stack.begin() };
+      this.state = {
+        kind: 'wallEnd',
+        part: h.part,
+        start: structuredClone(o),
+        openings,
+        plan: planSnapshot(store.doc),
+        tx: store.stack.begin(),
+      };
     }
     if (o?.kind === 'opening' && (h.part === 'start' || h.part === 'end')) {
       const host = hostWall(store.doc, o);
@@ -99,10 +107,13 @@ export class StructureTool {
       const p = step ? { x: Math.round(e.world.x / step) * step, y: Math.round(e.world.y / step) * step } : e.world;
       const next = moveWallEnd(s.start, s.part, p);
       const openings = reseatOpenings(s.openings, s.start, next);
+      // Walls joined at that end (or T'd onto this wall) stretch to stay joined.
+      const skip = new Set([s.start.id, ...s.openings.map((o) => o.id)]);
       s.tx.update(
         new EditObjectsCommand('ResizeWall', [
           { from: s.start, to: next },
           ...s.openings.map((from, i) => ({ from, to: openings[i]! })),
+          ...followWalls(s.plan, new Map([[next.id, next]]), skip),
         ]),
       );
       store.setFeedback({ rotateLabel: { text: `${wallLength(next).toFixed(2)} m`, at: e.world } });

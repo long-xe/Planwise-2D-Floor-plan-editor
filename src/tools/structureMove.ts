@@ -5,6 +5,7 @@ import { hostWall, wallLength, wallQuad } from '../core/structure';
 import { EditObjectsCommand } from '../core/structureCommands';
 import { slideOpening, snapAlong, translateWall } from '../core/structureEdit';
 import { type Rect, boundsOf, unionRect } from '../geometry/vec';
+import { type PlanSnapshot, followWalls, planSnapshot } from '../core/wallFollow';
 
 /** Openings slide in 5 cm steps unless Alt (fine placement), like the furniture grid snap. */
 const OPENING_STEP_M = 0.05;
@@ -14,6 +15,10 @@ export interface StructureStarts {
   walls: Wall[];
   /** Openings whose wall isn't moving too (those ride along with it). */
   openings: { o: Opening; host: Wall }[];
+  /** The plan at drag start: neighbour walls and wall fixtures follow from it. */
+  plan: PlanSnapshot;
+  /** Everything the drag moves itself (the selection). */
+  moving: Set<string>;
 }
 
 export function structureStarts(store: EditorStore): StructureStarts {
@@ -26,6 +31,8 @@ export function structureStarts(store: EditorStore): StructureStarts {
   }
   const moving = new Set(walls.map((w) => w.id));
   return {
+    plan: walls.length ? planSnapshot(store.doc) : { walls: [], openings: [], fixtures: [] },
+    moving: new Set(store.selection),
     walls,
     openings: openings.flatMap((o) => {
       const host = hostWall(store.doc, o);
@@ -51,8 +58,12 @@ export function structureMoveCommand(
   dy: number,
   fine: boolean,
 ): EditObjectsCommand | null {
+  const walls = s.walls.map((w) => ({ from: w, to: translateWall(w, dx, dy) }));
+  // Walls cornered or T'd onto the moved ones stretch to stay joined.
+  const follow = followWalls(s.plan, new Map(walls.map((t) => [t.to.id, t.to])), s.moving);
   const targets = [
-    ...s.walls.map((w) => ({ from: w, to: translateWall(w, dx, dy) })),
+    ...walls,
+    ...follow,
     ...s.openings.map(({ o, host }) => {
       const len = wallLength(host) || 1;
       const along = (dx * (host.b.x - host.a.x) + dy * (host.b.y - host.a.y)) / len;

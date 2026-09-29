@@ -30,7 +30,10 @@ export interface ExportOptions {
   paper: PaperSize;
   orientation: Orientation;
   scale: ScaleOption;
-  /** Layer id → printed. */
+  /**
+   * Layer id → printed, for this export only. A layer left out follows its
+   * own "Include in print" setting (08).
+   */
   layers: Record<string, boolean>;
   elements: SheetElements;
 }
@@ -43,15 +46,18 @@ const PLAN_PAD_MM = 18;
 
 export const PNG_DPI = 300;
 
-export function defaultExportOptions(doc: Doc): ExportOptions {
-  // Design default: everything but Electrical and the drafting grid.
-  const layers = Object.fromEntries(doc.layers.map((l) => [l.id, l.id !== 'electrical' && l.id !== 'grid']));
+/** Which layers this export prints: its own ticks first, else each layer's "Include in print". */
+export function printedLayers(doc: Doc, o: ExportOptions): Record<string, boolean> {
+  return Object.fromEntries(doc.layers.map((l) => [l.id, o.layers[l.id] ?? l.includeInPrint]));
+}
+
+export function defaultExportOptions(_doc: Doc): ExportOptions {
   return {
     format: 'pdf',
     paper: 'A3',
     orientation: 'landscape',
     scale: 50,
-    layers,
+    layers: {},
     elements: { titleBlock: true, northArrow: true, scaleBar: true, dimensions: true, roomAreas: true, border: true },
   };
 }
@@ -94,7 +100,7 @@ export function sheetLayout(doc: Doc, o: ExportOptions): SheetLayout {
   const paper = o.orientation === 'landscape' ? { w: lw, h: lh } : { w: lh, h: lw };
   const frame = { minX: MARGIN_MM, minY: MARGIN_MM, maxX: paper.w - MARGIN_MM, maxY: paper.h - MARGIN_MM };
   const area = { ...frame, maxX: frame.maxX - (o.elements.titleBlock ? TITLE_BLOCK_MM : 0) };
-  const content = printedBounds(doc, o.layers);
+  const content = printedBounds(doc, printedLayers(doc, o));
   const cw = content.maxX - content.minX;
   const ch = content.maxY - content.minY;
   const availW = area.maxX - area.minX - 2 * PLAN_PAD_MM;

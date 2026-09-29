@@ -169,7 +169,7 @@ export function ExportModal() {
           <p className={`ml-[22px] flex-1 self-end pb-[18px] text-[11.5px] ${ex.error ? 'text-tool' : 'text-muted'}`}>
             {ex.error ??
               (o.format === 'png'
-                ? 'Drawn into an OffscreenCanvas and encoded off-thread; the editor stays at 60 fps.'
+                ? 'Drawn at 300 dpi into an OffscreenCanvas by the same renderer as the canvas.'
                 : o.format === 'json'
                   ? 'The whole project: document, layers and undo history.'
                   : 'Vector output from the same renderer as the canvas; scales without loss.')}

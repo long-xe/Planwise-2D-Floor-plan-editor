@@ -26,6 +26,8 @@ export class ExportState {
 
   show(on: boolean): void {
     this.open = on;
+    // Each export starts from the layers' own "Include in print".
+    if (on && this.opts) this.opts = { ...this.opts, layers: {} };
     this.error = null;
     this.store.changed();
   }

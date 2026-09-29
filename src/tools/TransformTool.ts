@@ -23,10 +23,21 @@ import { frameTransform, handleCursor, rectAsTransform, rotateKnobPosition, sele
 import type { Tool, ToolContext, ToolPointerEvent } from './Tool';
 
 const HANDLE_HIT_PX = 7;
+/** A press that drifts less than this is a click: nothing moves (or snaps to the grid). */
+const MOVE_MIN_PX = 3;
 
 type State =
   | { kind: 'idle' }
-  | { kind: 'move'; origin: Vec2; starts: Map<string, Transform>; structs: StructureStarts; tx: Transaction }
+  | {
+      kind: 'move';
+      origin: Vec2;
+      /** Where the press landed on screen: under MOVE_MIN_PX from it, it's still a click. */
+      press: Vec2;
+      moved: boolean;
+      starts: Map<string, Transform>;
+      structs: StructureStarts;
+      tx: Transaction;
+    }
   | {
       kind: 'rotate';
       pivot: Vec2;
@@ -106,6 +117,8 @@ export class TransformTool implements Tool {
     this.state = {
       kind: 'move',
       origin: e.world,
+      press: e.screen,
+      moved: false,
       starts: startsOf(store.selectedFurniture),
       structs: structureStarts(store),
       tx: store.stack.begin(),
@@ -173,6 +186,8 @@ export class TransformTool implements Tool {
   }
 
   private drag(s: Extract<State, { kind: 'move' }>, e: ToolPointerEvent, store: EditorStore): void {
+    if (!s.moved && Math.hypot(e.screen.x - s.press.x, e.screen.y - s.press.y) < MOVE_MIN_PX) return;
+    s.moved = true;
     let dx = e.world.x - s.origin.x;
     let dy = e.world.y - s.origin.y;
     const boxes = [...s.starts.values()].map((t) => aabbOf({ ...t, x: t.x + dx, y: t.y + dy }));

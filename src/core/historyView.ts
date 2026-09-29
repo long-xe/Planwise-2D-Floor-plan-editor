@@ -2,13 +2,27 @@ import type { Annotation } from './annotations';
 import { type Command, SetAppearanceCommand, TransformCommand } from './commands';
 import type { Doc, ItemIcon, SceneObject } from './document';
 import { findFurniture, findGroup, findLayer, findObject } from './document';
+import { DocPropsCommand, docEntryView } from './docCommands';
 import { AddLayerCommand, DeleteLayerCommand, LayerPropsCommand, ReorderLayerCommand } from './layerCommands';
 import { displayName, kindName, objectLabel, wallLength } from './structure';
-import { AddObjectsCommand, BatchCommand, DeleteCommand, EditObjectsCommand, GroupCommand } from './structureCommands';
-import { footprintToWorld } from '../geometry/transform';
-import { boundsOf } from '../geometry/vec';
+import {
+  AddObjectsCommand,
+  BatchCommand,
+  DeleteCommand,
+  EditObjectsCommand,
+  GroupCommand,
+  UngroupCommand,
+} from './structureCommands';
 
-const round2 = (v: number) => Math.round(v * 100) / 100;
+/** How each add reads in the toast and Redo button ("Add door Door · 0.80 m"). */
+const ADD_VERB: Record<string, string> = {
+  AddWall: 'Add wall',
+  AddDoor: 'Add door',
+  AddWindow: 'Add window',
+  AddAnnotation: 'Add',
+  PlaceFurniture: 'Place',
+  PlaceFixture: 'Place',
+};
 
 export type HistoryIcon =
   | 'move'
@@ -37,7 +51,6 @@ export interface EntryView {
   children: string[];
 }
 
-const num = (n: number) => +n.toFixed(2);
 const m = (n: number) => `${n.toFixed(2)} m`;
 const signed = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2)}`;
 const deg = (n: number) => `${+n.toFixed(1)}°`;
@@ -102,12 +115,18 @@ function transformView(c: TransformCommand, doc: Doc): EntryView {
   return { ...base, detail: `${who} · ${delta}`, human: `Move ${short(who)}` };
 }
 
-function editView(c: EditObjectsCommand): EntryView {
+function editView(c: EditObjectsCommand, doc: Doc): EntryView {
   const first = c.targets[0]!;
   const who = c.targets.length === 1 ? kindName(first.to) : `${c.targets.length} objects`;
   let detail = who;
   if (first.from.kind === 'wall' && first.to.kind === 'wall' && c.type.includes('Wall')) {
     detail = `${who} ${wallLength(first.from).toFixed(2)} → ${m(wallLength(first.to))}`;
+  } else if (c.type === 'MoveToLayer') {
+    detail = `${who} → ${findLayer(doc, first.to.layerId)?.name ?? first.to.layerId}`;
+  } else if (c.type === 'SetCircuit' && first.to.kind === 'furniture') {
+    detail = `${who} → ${first.to.circuit ? first.to.circuit.toUpperCase() : 'no circuit'}`;
+  } else if (first.to.kind === 'annotation') {
+    detail = first.to.name;
   } else if (first.from.kind === 'opening' && first.to.kind === 'opening') {
     detail =
       first.from.width !== first.to.width
@@ -116,7 +135,7 @@ function editView(c: EditObjectsCommand): EntryView {
   }
   const icon: HistoryIcon = c.type.startsWith('Resize')
     ? 'resize'
-    : c.type.startsWith('Edit')
+    : c.type.startsWith('Edit') || c.type.endsWith('Room') || c.type === 'SetCircuit'
       ? glyphOf(first.to)
       : 'move';
   return { title: c.type, detail, icon, category: 'geometry', human: `${c.type} ${short(who)}`, children: [] };
@@ -159,8 +178,9 @@ function layerView(c: Command, doc: Doc): EntryView | null {
 }
 
 export function entryView(c: Command, doc: Doc): EntryView {
+  if (c instanceof DocPropsCommand) return docEntryView(c);
   if (c instanceof TransformCommand) return transformView(c, doc);
-  if (c instanceof EditObjectsCommand) return editView(c);
+  if (c instanceof EditObjectsCommand) return editView(c, doc);
   const layer = layerView(c, doc);
   if (layer) return layer;
   if (c instanceof BatchCommand) {
@@ -194,7 +214,7 @@ export function entryView(c: Command, doc: Doc): EntryView {
     // One new piece reads with its size ("Kitchen / Study · 2.60 m", design 09).
     const one = c.objects.length === 1 ? c.objects[0]! : null;
     const detail = one ? objectLabel(one) : `${c.objects.length} objects`;
-    const verb = c.type === 'AddWall' ? 'Add wall' : c.type === 'PlaceFurniture' ? 'Place' : c.type;
+    const verb = ADD_VERB[c.type] ?? c.type;
     const human = `${verb} ${short(one ? displayName(one) : detail)}`;
     return { title: c.type, detail, icon: glyphOf(one ?? c.objects[0]), category: 'geometry', human, children: [] };
   }
@@ -206,6 +226,17 @@ export function entryView(c: Command, doc: Doc): EntryView {
       icon: 'group',
       category: 'geometry',
       human: `Group ${c.group.name}`,
+      children: [],
+    };
+  }
+  if (c instanceof UngroupCommand) {
+    const names = c.groups.map((g) => g.name).join(', ');
+    return {
+      title: 'Ungroup',
+      detail: `${names} → ${c.ids.length} objects`,
+      icon: 'group',
+      category: 'geometry',
+      human: `Ungroup ${names}`,
       children: [],
     };
   }
@@ -221,68 +252,4 @@ export function entryView(c: Command, doc: Doc): EntryView {
     };
   }
   return { title: c.type, detail: c.describe(), icon: 'group', category: 'geometry', human: c.type, children: [] };
-}
-
-/** The Payload inspector (design 09): the command's data, compact and readable. */
-export function entryPayload(c: Command, doc: Doc): Record<string, unknown> {
-  const ts = Math.round(c.ts / 1000);
-  if (c instanceof TransformCommand && c.targets.length === 1) {
-    const { id, from, to } = c.targets[0]!;
-    const layer = findObject(doc, id)?.layerId;
-    const pick = (t: typeof from) =>
-      c.type === 'Rotate'
-        ? num(t.rotation)
-        : c.type === 'Resize'
-          ? [num(t.w), num(t.h)]
-          : c.type === 'Flip'
-            ? t.flipX
-            : [num(t.x), num(t.y)];
-    return {
-      type: c.type,
-      target: id,
-      layer,
-      from: pick(from),
-      to: pick(to),
-      ...(c.type === 'Rotate' ? { pivot: [num(from.x), num(from.y)] } : {}),
-      ts,
-    };
-  }
-  if (c instanceof TransformCommand) return { type: c.type, targets: c.targets.map((t) => t.id), ts };
-  if (c instanceof BatchCommand) return { type: c.type, children: c.children.map((ch) => entryPayload(ch, doc)), ts };
-  if (c instanceof LayerPropsCommand) return { type: c.type, layer: c.layerId, from: c.from, to: c.to, ts };
-  if (c instanceof ReorderLayerCommand) return { type: c.type, layer: c.layerId, from: c.from, to: c.to, ts };
-  if (c instanceof DeleteCommand) return { type: 'Delete', targets: [...c.ids], ts };
-  if (c instanceof EditObjectsCommand) return { type: c.type, targets: c.targets.map((t) => t.to.id), ts };
-  if (c instanceof GroupCommand) return { type: 'Group', group: c.group.id, targets: [...c.ids], ts };
-  if (c instanceof AddObjectsCommand) {
-    // Design 05: PlaceFurniture(sofa-3s, layer=furniture, x, y) — x / y are the footprint's top-left.
-    const f = c.objects[0];
-    if (c.type === 'PlaceFurniture' && f?.kind === 'furniture') {
-      const b = boundsOf(footprintToWorld(f.transform, f.footprint));
-      return {
-        type: c.type,
-        item: f.catalogId,
-        target: f.id,
-        layer: f.layerId,
-        x: round2(b.minX),
-        y: round2(b.minY),
-        ts,
-      };
-    }
-    return { type: c.type, targets: c.ids, ts };
-  }
-  if (c instanceof AddLayerCommand) return { type: c.type, layer: c.layer.id, ts };
-  if (c instanceof DeleteLayerCommand) return { type: c.type, layer: c.layerId, ts };
-  if (c instanceof SetAppearanceCommand) return { type: 'SetAppearance', target: c.id, from: c.from, to: c.to, ts };
-  return { type: c.type, ts };
-}
-
-/** JSON with short number arrays kept on one line (`"pivot": [2.4, 6.4]`). */
-export function formatPayload(p: Record<string, unknown>): string {
-  return (
-    JSON.stringify(p, null, 2)
-      .replace(/\[\s+([^[\]{}]*?)\s+\]/g, (_, inner: string) => `[${inner.replace(/\s+/g, ' ')}]`)
-      // Closing brace on the last line, as the design prints it ("ts": …}).
-      .replace(/\n\}$/, '}')
-  );
 }

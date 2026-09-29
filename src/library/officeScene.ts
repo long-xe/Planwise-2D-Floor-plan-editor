@@ -15,7 +15,8 @@ const layer = (id: string, name: string, color: string, order: number, locked = 
   locked,
   opacity: 1,
   visible: true,
-  includeInPrint: true,
+  // Design 12 prints everything but the wiring and the drafting grid.
+  includeInPrint: id !== 'electrical' && id !== 'grid',
   snapTargets: true,
   cacheAsStatic: locked,
 });

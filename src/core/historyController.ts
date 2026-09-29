@@ -38,13 +38,20 @@ export class HistoryController {
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   private toastSeq = 0;
 
+  /**
+   * `restore` reopens the autosaved project; `replace` (a new or imported
+   * plan) keeps the given document and makes it the saved project.
+   */
   constructor(
     private readonly store: EditorStore,
     private readonly storage: Storage | null,
+    open: 'restore' | 'replace' = 'restore',
   ) {
     this.options = loadOptions(storage);
     this.applyOptions();
-    if (this.options.persist) this.restore();
+    if (!this.options.persist) return;
+    if (open === 'restore') this.restore();
+    else this.saveNow();
   }
 
   /** Default inspector entry: the next redo if there is one (design), else HEAD. */
@@ -134,6 +141,11 @@ export class HistoryController {
     this.saveTimer = setTimeout(() => this.save(), AUTOSAVE_MS);
   }
 
+  /** Writes the project now (a new or imported plan replaces the autosave straight away). */
+  saveNow(): void {
+    this.save();
+  }
+
   private save(): void {
     this.saveTimer = null;
     if (!saveProject(this.storage, this.store.doc, this.store.stack.snapshot())) return;
@@ -147,6 +159,7 @@ export class HistoryController {
     if (!saved) return;
     const doc: Doc = this.store.doc;
     doc.name = saved.doc.name;
+    doc.sheet = saved.doc.sheet;
     doc.layers = saved.doc.layers;
     doc.groups = saved.doc.groups;
     doc.objects = saved.doc.objects;

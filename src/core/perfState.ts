@@ -1,7 +1,8 @@
 import { DEFAULT_RENDER, PerfMonitor, type RenderOptions } from './perf';
 import type { EditorStore } from './store';
 
-export type RightTab = 'properties' | 'performance';
+/** Right panel tab: the selection, the plan itself (Document), or the Perf screen (11). */
+export type RightTab = 'properties' | 'document' | 'performance';
 
 /** Off-screen surfaces the Performance tab previews, registered by the render loop. */
 export interface PerfBuffers {

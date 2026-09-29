@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { historyBytes } from '../core/commandCodec';
-import { entryPayload, entryView, formatPayload } from '../core/historyView';
+import { entryPayload, formatPayload } from '../core/historyPayload';
+import { entryView } from '../core/historyView';
 import { cn } from './cn';
 import { Section, TextButton, Toggle } from './controls';
 import { HistoryGlyph } from './historyIcons';
