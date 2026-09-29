@@ -24,7 +24,7 @@ import { ReorderLayerCommand, ordersOf } from '../core/layerCommands';
 import { LayerCardBody, LayerChildren } from './LayerCard';
 import { insertionCollision, layerAnnouncements } from './layerDnd';
 import { RenderOrder } from './RenderOrder';
-import { Tabs } from './LeftPanel';
+import { LeftTabs } from './LeftPanel';
 import { useEditor } from './useStore';
 import { cn } from './cn';
 
@@ -137,7 +137,7 @@ export function LayersManager() {
 
   return (
     <aside className="flex min-h-0 w-left-wide flex-col border-r border-line bg-surface">
-      <Tabs tabs={['Layers', 'Library', 'History']} active="Layers" />
+      <LeftTabs />
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <div className="flex items-center pt-[9px]">
           <span className="font-mono text-10 font-medium tracking-label text-muted uppercase">

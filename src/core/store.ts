@@ -12,7 +12,9 @@ import {
   newLayer,
 } from './layerCommands';
 import { duplicateCommand, editObjectsCommand, groupCommand, offsetsCommand, resizeUnitsCommand } from './editActions';
-import { HitIndex, type HitReport } from './picking';
+import { HistoryController } from './historyController';
+import { ToolState } from './toolState';
+import { HitIndex, type HitReport, hitLogLine } from './picking';
 import { DEFAULT_HIT, type FrameStats, type HitSettings, type ToolFeedback } from './storeTypes';
 import { type SelectionUnit, expandGroups, selectionUnits, unitsBounds } from './selection';
 import { DEFAULT_SNAP, type SnapSettings } from './snapping';
@@ -32,11 +34,12 @@ type Listener = () => void;
 export class EditorStore {
   readonly doc: Doc;
   readonly stack: CommandStack;
+  /** History screen state (09): tab, picked entry, toast, options, autosave. */
+  readonly history: HistoryController;
+  /** Active tool and the Wall tool's settings / chain (04). */
+  readonly tools: ToolState = new ToolState(this);
   selection: string[] = [];
-  /**
-   * Layer opened in the Layers manager (08). While set, the left panel
-   * widens and the right panel shows the layer instead of an object.
-   */
+  /** Layer open in the Layers manager (08): wide left panel, layer in the right panel. */
   activeLayerId: string | null = null;
   viewport: Viewport = createViewport();
   snap: SnapSettings = { ...DEFAULT_SNAP };
@@ -63,7 +66,7 @@ export class EditorStore {
   private hoverListeners = new Set<Listener>();
   private index: HitIndex | null = null;
 
-  constructor(doc: Doc) {
+  constructor(doc: Doc, storage: Storage | null = null) {
     this.doc = doc;
     this.stack = new CommandStack(doc, () => {
       this.index = null;
@@ -73,8 +76,11 @@ export class EditorStore {
         return !!o && isEditable(this.doc, o);
       });
       if (this.activeLayerId && !findLayer(this.doc, this.activeLayerId)) this.activeLayerId = null;
+      this.history?.afterChange();
       this.changed();
     });
+    // After the stack: it may restore a saved project into `doc` and the stack.
+    this.history = new HistoryController(this, storage);
   }
 
   /** Broadphase index, rebuilt on first use after any document change. */
@@ -164,8 +170,7 @@ export class EditorStore {
   // ── Layers (screen 08); every change is an undoable command ──────────
 
   setLayer(type: LayerPropsType, id: string, patch: LayerPatch): void {
-    const cmd = LayerPropsCommand.of(this.doc, type, id, patch);
-    if (cmd) this.stack.execute(cmd);
+    this.run(LayerPropsCommand.of(this.doc, type, id, patch));
   }
 
   addLayer(): void {
@@ -210,12 +215,7 @@ export class EditorStore {
   setLastHit(hit: HitReport | null): void {
     this.lastHit = hit;
     if (hit) this.sampleCost(hit);
-    if (hit && this.hit.logTimings) {
-      console.debug(
-        `[hit-test] ${hit.mode} · ${hit.candidates} bbox candidates · ${hit.polygonTests} polygon tests · ` +
-          `${hit.id ?? 'none'} · ${this.hitCostMs.toFixed(3)} ms avg`,
-      );
-    }
+    if (hit && this.hit.logTimings) console.debug(hitLogLine(hit, this.hitCostMs));
   }
 
   // ── Document edits (always through commands) ───────────────────────

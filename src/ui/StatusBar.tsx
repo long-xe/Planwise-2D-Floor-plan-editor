@@ -1,4 +1,4 @@
-import { useEditor, useFrameStats } from './useStore';
+import { useEditor, useFrameStats, useWallDraft } from './useStore';
 import { cn } from './cn';
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -27,6 +27,46 @@ function Dotted({ tone, label, value }: { tone: Tone; label: string; value: stri
 }
 
 /** Layers manager (08): layer counts and whether the static cache was reused. */
+/** Wall tool (04): where the pointer landed, the segment, and what it snapped to. */
+function WallStats() {
+  const store = useEditor();
+  const stats = useFrameStats();
+  const d = useWallDraft();
+  const p = d?.end ?? stats.cursor;
+  const len = d?.placing ? Math.hypot(d.end.x - d.start.x, d.end.y - d.start.y) : null;
+  const walls = store.doc.objects.filter((o) => o.kind === 'wall').length;
+  return (
+    <>
+      <Stat label="X" value={`${p.x.toFixed(2)} m`} />
+      <Stat label="Y" value={`${p.y.toFixed(2)} m`} />
+      <Stat label="Len" value={len === null ? '—' : `${len.toFixed(2)} m`} />
+      <Stat label="Angle" value={d?.placing && d.angle !== null ? `${+d.angle.toFixed(1)}°` : '—'} />
+      <Dotted tone="success" label="Snap" value={d?.kind ?? '—'} />
+      <Stat label="Walls" value={String(walls)} />
+      <Dotted tone="success" label="FPS" value={String(stats.fps)} />
+    </>
+  );
+}
+
+/** History tab (09): where HEAD is, how deep undo / redo go, and the last step taken. */
+function HistoryStats() {
+  const store = useEditor();
+  const stats = useFrameStats();
+  const { stack } = store;
+  const last = stack.last;
+  const verb = last?.kind === 'undo' ? 'Undo' : last?.kind === 'redo' ? 'Redo' : 'Do';
+  return (
+    <>
+      <Stat label="Head" value={`#${stack.headSeq}`} />
+      <Stat label="Undo" value={String(stack.undoDepth)} />
+      <Dotted tone="accent" label="Redo" value={String(stack.redoDepth)} />
+      <Stat label="Objects" value={String(store.doc.objects.length)} />
+      <Dotted tone="tool" label="Last" value={last ? `${verb} ${last.cmd.type}` : '—'} />
+      <Dotted tone="success" label="FPS" value={String(stats.fps)} />
+    </>
+  );
+}
+
 function LayerStats() {
   const store = useEditor();
   const stats = useFrameStats();
@@ -59,6 +99,10 @@ export function StatusBar() {
     <footer className="flex h-statusbar items-center gap-6 border-t border-line bg-surface px-4">
       {store.activeLayerId ? (
         <LayerStats />
+      ) : store.history.tab === 'history' ? (
+        <HistoryStats />
+      ) : store.tools.active === 'wall' ? (
+        <WallStats />
       ) : (
         <>
           <Stat label="X" value={`${stats.cursor.x.toFixed(2)} m`} />

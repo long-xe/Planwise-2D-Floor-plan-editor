@@ -8,6 +8,14 @@ import { type SelectionUnit, unitsBounds } from './selection';
 import { AddObjectsCommand, BatchCommand, EditObjectsCommand, GroupCommand } from './structureCommands';
 import { mapTransformBox } from '../geometry/transform';
 
+/** A fresh id for a new object ("w_0010"). */
+export function newObjectId(doc: Doc, prefix: string): string {
+  return nextId(
+    doc.objects.map((o) => o.id),
+    prefix,
+  )();
+}
+
 /** Next free id with the given prefix ("f_0229", "g_0003"), stable across undo. */
 function nextId(taken: Iterable<string>, prefix: string): () => string {
   let n = 0;

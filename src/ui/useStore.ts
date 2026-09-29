@@ -1,5 +1,6 @@
 import { createContext, useContext, useSyncExternalStore } from 'react';
 import type { EditorStore, FrameStats } from '../core/store';
+import type { WallDraft } from '../core/toolState';
 
 export const StoreContext = createContext<EditorStore | null>(null);
 
@@ -23,4 +24,11 @@ export function useEditorStoreRef(): EditorStore {
   const store = useContext(StoreContext);
   if (!store) throw new Error('StoreContext missing');
   return store;
+}
+
+/** The Wall tool's live segment (04), on its own channel: changes with every pointer move. */
+export function useWallDraft(): WallDraft | null {
+  const store = useContext(StoreContext);
+  if (!store) throw new Error('StoreContext missing');
+  return useSyncExternalStore(store.tools.subscribeDraft, store.tools.getDraft);
 }

@@ -2,6 +2,7 @@ import type { Doc, Furniture, Layer, Wall } from '../core/document';
 import { isFixture } from '../core/document';
 import { hostWall } from '../core/structure';
 import { openingShape } from '../geometry/openings';
+import { type WallGraph, buildWallGraph, wallPolygon } from '../geometry/walls';
 import { type Viewport, scaleOf } from '../core/viewport';
 import type { Rect, Vec2 } from '../geometry/vec';
 import { DEG } from '../geometry/vec';
@@ -49,12 +50,17 @@ export function drawLayer(
   theme: CanvasTheme,
   dpr: number,
   out: SceneCounters,
+  /** Auto-join corners (04): mitred L corners instead of square ends. */
+  mitre = true,
 ): number {
   let drawn = 0;
+  // One graph per layer draw: every wall needs its neighbours for its corners.
+  const walls = doc.objects.filter((o): o is Wall => o.kind === 'wall' && o.layerId === layer.id);
+  const graph = walls.length ? buildWallGraph(walls) : null;
   for (const o of doc.objects) {
     if (o.layerId !== layer.id) continue;
     if (o.kind === 'wall') {
-      drawWall(g, o, v, theme);
+      drawWall(g, o, graph, mitre, v, theme);
       drawn++;
     } else if (o.kind === 'opening') {
       // Drawn after every wall (drawOpenings) so no wall paints over a cut.
@@ -154,19 +160,15 @@ function drawOpenings(g: Ctx2D, doc: Doc, layer: Layer, v: Viewport, theme: Canv
   g.lineCap = 'butt';
 }
 
-function drawWall(g: Ctx2D, w: Wall, v: Viewport, theme: CanvasTheme): void {
+function drawWall(g: Ctx2D, w: Wall, graph: WallGraph | null, mitre: boolean, v: Viewport, theme: CanvasTheme): void {
   const s = scaleOf(v);
-  const dx = w.b.x - w.a.x;
-  const dy = w.b.y - w.a.y;
-  const len = Math.hypot(dx, dy) || 1;
-  // Offset perpendicular to the centreline by half the thickness.
-  const nx = (-dy / len) * (w.thickness / 2);
-  const ny = (dx / len) * (w.thickness / 2);
   g.beginPath();
-  g.moveTo((w.a.x + nx) * s + v.panX, (w.a.y + ny) * s + v.panY);
-  g.lineTo((w.b.x + nx) * s + v.panX, (w.b.y + ny) * s + v.panY);
-  g.lineTo((w.b.x - nx) * s + v.panX, (w.b.y - ny) * s + v.panY);
-  g.lineTo((w.a.x - nx) * s + v.panX, (w.a.y - ny) * s + v.panY);
+  wallPolygon(w, graph, mitre).forEach((p, i) => {
+    const x = p.x * s + v.panX;
+    const y = p.y * s + v.panY;
+    if (i) g.lineTo(x, y);
+    else g.moveTo(x, y);
+  });
   g.closePath();
   g.fillStyle = theme.ink;
   g.fill();

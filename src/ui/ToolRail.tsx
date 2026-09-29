@@ -13,6 +13,7 @@ import grid from './icons/grid.svg';
 import magnet from './icons/magnet.svg';
 import gear from './icons/gear.svg';
 import { cn } from './cn';
+import { useEditor } from './useStore';
 
 interface RailItem {
   id: string;
@@ -22,7 +23,7 @@ interface RailItem {
   h: number;
 }
 
-// Only `select` is wired for screen 06; the rest arrive with their screens.
+// Select and Wall are wired (06, 04); the rest arrive with their screens.
 const TOP: (RailItem | 'sep')[] = [
   { id: 'select', label: 'Select (V)', src: select, w: 10, h: 14 },
   { id: 'hand', label: 'Hand (H)', src: hand, w: 10, h: 15.75 },
@@ -44,7 +45,11 @@ const BOTTOM: RailItem[] = [
   { id: 'theme', label: 'Theme', src: gear, w: 18, h: 18 },
 ];
 
-export function ToolRail({ active }: { active: string }) {
+const WIRED: readonly string[] = ['select', 'wall'];
+
+export function ToolRail() {
+  const store = useEditor();
+  const active = store.tools.active;
   const button = (t: RailItem, size = 'size-9') => (
     <button
       key={t.id}
@@ -52,6 +57,8 @@ export function ToolRail({ active }: { active: string }) {
       title={t.label}
       aria-label={t.label}
       aria-pressed={t.id === active}
+      aria-disabled={!WIRED.includes(t.id)}
+      onClick={() => (t.id === 'select' || t.id === 'wall') && store.tools.setActive(t.id)}
       className={cn(
         'flex items-center justify-center rounded-[4px] border',
         size,

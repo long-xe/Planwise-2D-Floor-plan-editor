@@ -155,17 +155,26 @@ export function Segmented<T extends string | number>({
   options,
   value,
   font,
+  tone = 'accent',
+  className,
   onChange,
 }: {
   label: string;
   options: readonly { value: T; label: string }[];
   value: T;
-  /** Idle font classes; the active segment adds weight 500 and the accent colour. */
+  /** Idle font classes; the active segment adds weight and colour. */
   font: string;
+  /** `neutral`: grey outline + ink text for the active segment (History filter, 09). */
+  tone?: 'accent' | 'neutral';
+  className?: string;
   onChange(v: T): void;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex h-7 rounded-[3px] border border-line bg-sunken p-[1px]">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className={cn('flex h-7 rounded-[3px] border border-line bg-sunken p-[1px]', className)}
+    >
       {options.map((o) => (
         <button
           key={String(o.value)}
@@ -176,7 +185,10 @@ export function Segmented<T extends string | number>({
           className={cn(
             'flex-1 rounded-[2px] border border-transparent text-11 text-muted',
             font,
-            value === o.value && 'border-accent bg-surface font-medium text-accent',
+            value === o.value &&
+              (tone === 'neutral'
+                ? 'rounded-[3px] border-line bg-surface font-semibold text-ink'
+                : 'border-accent bg-surface font-medium text-accent'),
           )}
         >
           {o.label}

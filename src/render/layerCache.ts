@@ -39,8 +39,10 @@ export class LayerCache {
     pxH: number,
     dpr: number,
     paint: (cg: Ctx2D) => void,
+    /** Anything else that changes the pixels (the mitre setting). */
+    salt = '',
   ): CacheState {
-    const key = `${v.panX},${v.panY},${v.zoom},${pxW},${pxH},${dpr},${layerSignature(doc, layer)}`;
+    const key = `${v.panX},${v.panY},${v.zoom},${pxW},${pxH},${dpr},${salt},${layerSignature(doc, layer)}`;
     let e = this.entries.get(layer.id);
     let state: CacheState = 'hit';
     if (!e || e.key !== key) {

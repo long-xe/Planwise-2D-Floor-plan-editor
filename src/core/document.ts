@@ -64,13 +64,22 @@ export interface Group {
 }
 
 /** Straight wall between two centreline points. Full wall tooling lands with screen 04. */
+export type WallAlign = 'center' | 'inside' | 'outside';
+
 export interface Wall {
   kind: 'wall';
   id: string;
   layerId: string;
+  /** The drawn line; faces sit around it per `align` (see wallFaces). */
   a: Vec2;
   b: Vec2;
   thickness: number;
+  /** "Exterior · North", "Kitchen / Study" (design 04 names walls by the rooms they part). */
+  name?: string;
+  /** Metres; default 2.70 (Wall tool H field). */
+  height?: number;
+  /** Center (default): the line is the centreline. Inside / outside: the line is a face. */
+  align?: WallAlign;
 }
 
 /**

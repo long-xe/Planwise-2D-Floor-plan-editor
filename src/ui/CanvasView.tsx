@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { type Viewport, screenToWorld, zoomAt } from '../core/viewport';
 import { RenderLoop } from '../render/renderLoop';
+import type { ToolId } from '../core/toolState';
 import type { Tool, ToolContext, ToolPointerEvent } from '../tools/Tool';
 import { useEditorStoreRef } from './useStore';
 
@@ -8,7 +9,7 @@ import { useEditorStoreRef } from './useStore';
  * Hosts the canvas and forwards input to the active tool. The render loop
  * owns drawing; this component never re-renders because of document changes.
  */
-export function CanvasView({ tool }: { tool: Tool }) {
+export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
   const store = useEditorStoreRef();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -19,6 +20,8 @@ export function CanvasView({ tool }: { tool: Tool }) {
     loop.start();
 
     const ctx: ToolContext = { store, setCursor: (c) => (canvas.style.cursor = c) };
+    // Read at event time, so switching tools needs no new render loop.
+    const tool = () => tools[store.tools.active];
     let panning: { x: number; y: number; v: Viewport } | null = null;
     let spaceDown = false;
 
@@ -43,7 +46,7 @@ export function CanvasView({ tool }: { tool: Tool }) {
         canvas.style.cursor = 'grabbing';
         return;
       }
-      tool.onPointerDown(toEvent(e), ctx);
+      tool().onPointerDown(toEvent(e), ctx);
     };
     const move = (e: PointerEvent) => {
       const ev = toEvent(e);
@@ -53,15 +56,15 @@ export function CanvasView({ tool }: { tool: Tool }) {
         store.setViewport({ ...p.v, panX: p.v.panX + e.clientX - p.x, panY: p.v.panY + e.clientY - p.y });
         return;
       }
-      tool.onPointerMove(ev, ctx);
+      tool().onPointerMove(ev, ctx);
     };
     const up = (e: PointerEvent) => {
       if (panning) {
         panning = null;
-        canvas.style.cursor = spaceDown ? 'grab' : tool.cursor;
+        canvas.style.cursor = spaceDown ? 'grab' : tool().cursor;
         return;
       }
-      tool.onPointerUp(toEvent(e), ctx);
+      tool().onPointerUp(toEvent(e), ctx);
     };
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
@@ -78,6 +81,12 @@ export function CanvasView({ tool }: { tool: Tool }) {
       const target = e.target as HTMLElement | null;
       if (target?.closest('input, textarea')) return;
       const mod = e.metaKey || e.ctrlKey;
+      // ⌘⌥Z: jump to the entry inspected in History. e.code, since ⌥ turns e.key into "Ω" on macOS.
+      if (mod && e.altKey && e.code === 'KeyZ') {
+        e.preventDefault();
+        store.history.jump(store.history.shownSeq);
+        return;
+      }
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (e.shiftKey) store.redo();
@@ -87,6 +96,16 @@ export function CanvasView({ tool }: { tool: Tool }) {
       if (mod && e.key.toLowerCase() === 'g') {
         e.preventDefault();
         store.group();
+        return;
+      }
+      // The Wall tool owns Enter / Esc / Backspace while drawing (04).
+      if (store.tools.active === 'wall' && ['Enter', 'Escape', 'Backspace', 'Delete'].includes(e.key)) {
+        e.preventDefault();
+        tool().onKey?.(e, ctx);
+        return;
+      }
+      if (!mod && !e.altKey && (e.key === 'v' || e.key === 'w')) {
+        store.tools.setActive(e.key === 'w' ? 'wall' : 'select');
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -100,16 +119,16 @@ export function CanvasView({ tool }: { tool: Tool }) {
         e.preventDefault();
         return;
       }
-      tool.onKey?.(e, ctx);
+      tool().onKey?.(e, ctx);
     };
     const keyup = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
         spaceDown = false;
-        canvas.style.cursor = tool.cursor;
+        canvas.style.cursor = tool().cursor;
       }
     };
     // Losing focus mid-drag must not leave a half-applied edit behind.
-    const blur = () => tool.cancel(ctx);
+    const blur = () => tool().cancel(ctx);
 
     canvas.addEventListener('pointerdown', down);
     canvas.addEventListener('pointermove', move);
@@ -121,7 +140,7 @@ export function CanvasView({ tool }: { tool: Tool }) {
     window.addEventListener('blur', blur);
     return () => {
       loop.stop();
-      tool.cancel(ctx);
+      tool().cancel(ctx);
       canvas.removeEventListener('pointerdown', down);
       canvas.removeEventListener('pointermove', move);
       canvas.removeEventListener('pointerup', up);
@@ -131,7 +150,7 @@ export function CanvasView({ tool }: { tool: Tool }) {
       window.removeEventListener('keyup', keyup);
       window.removeEventListener('blur', blur);
     };
-  }, [store, tool]);
+  }, [store, tools]);
 
   return <canvas ref={canvasRef} className="block size-full touch-none" />;
 }

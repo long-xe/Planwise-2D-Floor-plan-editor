@@ -1,7 +1,9 @@
 import type { Doc, Furniture, ItemIcon, SceneObject } from './document';
 import { findGroup } from './document';
 import { layerObjects } from './layerStats';
-import { kindName, objectLabel, openingsOf } from './structure';
+import { displayName, kindName, openingsOf, structureSize } from './structure';
+
+const sizeMeta = (x: SceneObject) => `${structureSize(x)!.toFixed(2)} m`;
 
 /** Row icon key: catalog kinds plus the Walls layer's structural pieces. */
 export type RowGlyph = ItemIcon | 'wall' | 'door' | 'window';
@@ -20,6 +22,8 @@ export interface ListRow {
   ids: string[];
   /** Nested under the row above (a door or window under its wall). */
   indent: boolean;
+  /** Right-hand detail: a wall's length or an opening's width (design 04). */
+  meta?: string;
 }
 
 /**
@@ -32,9 +36,9 @@ export function listRows(doc: Doc, layerId: string): ListRow[] {
   const objects = layerObjects(doc, layerId);
   for (const w of objects) {
     if (w.kind !== 'wall') continue;
-    rows.push({ key: w.id, label: objectLabel(w), glyph: 'wall', ids: [w.id], indent: false });
+    rows.push({ key: w.id, label: displayName(w), glyph: 'wall', ids: [w.id], indent: false, meta: sizeMeta(w) });
     for (const o of openingsOf(doc, w.id)) {
-      rows.push({ key: o.id, label: objectLabel(o), glyph: o.type, ids: [o.id], indent: true });
+      rows.push({ key: o.id, label: displayName(o), glyph: o.type, ids: [o.id], indent: true, meta: sizeMeta(o) });
     }
   }
   const seen = new Set<string>();

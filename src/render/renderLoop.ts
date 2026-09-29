@@ -95,6 +95,7 @@ export class RenderLoop {
     const doc = store.doc;
     const v = store.viewport;
     const c = this.counters;
+    const mitre = store.tools.wall.autoJoin;
     c.drawn = 0;
     c.culled = 0;
     const draws: Record<string, number> = {};
@@ -104,23 +105,33 @@ export class RenderLoop {
       if (!layer.visible) {
         if (store.activeLayerId) {
           g.globalAlpha = GHOST_ALPHA;
-          drawLayer(g, doc, layer, v, view, theme, dpr, { drawn: 0, culled: 0 });
+          drawLayer(g, doc, layer, v, view, theme, dpr, { drawn: 0, culled: 0 }, mitre);
         }
         continue;
       }
       if (layer.locked || layer.cacheAsStatic) {
         cached.add(layer.id);
         let n = 0;
-        const hit = this.cache.draw(g, doc, layer, v, this.canvas.width, this.canvas.height, dpr, (cg) => {
-          n = drawLayer(cg, doc, layer, v, view, theme, dpr, c);
-        });
+        const hit = this.cache.draw(
+          g,
+          doc,
+          layer,
+          v,
+          this.canvas.width,
+          this.canvas.height,
+          dpr,
+          (cg) => {
+            n = drawLayer(cg, doc, layer, v, view, theme, dpr, c, mitre);
+          },
+          mitre ? 'mitre' : 'square',
+        );
         if (hit === 'hit') n = draws[layer.id] ?? this.layerDraws[layer.id] ?? 0;
         draws[layer.id] = n;
         state = state === 'miss' || hit === 'miss' ? 'miss' : 'hit';
         continue;
       }
       g.globalAlpha = layer.opacity;
-      draws[layer.id] = drawLayer(g, doc, layer, v, view, theme, dpr, c);
+      draws[layer.id] = drawLayer(g, doc, layer, v, view, theme, dpr, c, mitre);
     }
     g.globalAlpha = 1;
     this.cache.retain(cached);

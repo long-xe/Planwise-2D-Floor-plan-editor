@@ -85,7 +85,15 @@ type OpeningSpec = Pick<Opening, 'type' | 'offset' | 'width' | 'hinge' | 'swing'
 /** Openings are collected as walls are declared, so each sits next to its host below. */
 let openings: Opening[] = [];
 
-function wall(ax: number, ay: number, bx: number, by: number, thickness: number, cuts: OpeningSpec[] = []): Wall {
+function wall(
+  name: string,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  thickness: number,
+  cuts: OpeningSpec[] = [],
+): Wall {
   const id = `w_${wallSeq++}`;
   for (const c of cuts) {
     openings.push({
@@ -96,7 +104,7 @@ function wall(ax: number, ay: number, bx: number, by: number, thickness: number,
       ...c,
     });
   }
-  return { kind: 'wall', id, layerId: 'walls', a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness };
+  return { kind: 'wall', id, layerId: 'walls', name, a: { x: ax, y: ay }, b: { x: bx, y: by }, thickness, height: 2.7 };
 }
 
 const pane = (offset: number, width: number): OpeningSpec => ({ type: 'window', offset, width });
@@ -113,16 +121,17 @@ export function createDemoDoc(): Doc {
   wallSeq = 1;
   openings = [];
   const walls = [
+    // Exterior walls meet at shared centreline corners so they mitre (04).
     // Doors and windows from the design (openings 20:804–827), offsets along each wall from `a`.
-    wall(0, 0.12, 12, 0.12, 0.24, [pane(1.4, 3.6), pane(8.8, 2.4)]),
-    wall(0, 8.28, 12, 8.28, 0.24, [pane(1.2, 2.6), pane(5.8, 1.0)]),
-    wall(0.12, 0, 0.12, 8.4, 0.24, [door(1.2, 0.8, 'start', -1), pane(2.4, 1.4)]),
-    wall(11.88, 0, 11.88, 8.4, 0.24, [pane(5.0, 2.4)]),
-    wall(8, 0.24, 8, 0.8, 0.16),
-    wall(8, 3.4, 8, 8.16, 0.16, [door(1.6, 0.8, 'start', -1)]),
-    wall(5, 4.68, 5, 8.16, 0.16),
-    wall(0.24, 4.6, 7.92, 4.6, 0.16, [door(3.16, 0.8, 'start', 1), door(5.56, 0.72, 'end', 1)]),
-    wall(8.08, 3.8, 11.76, 3.8, 0.16),
+    wall('Exterior · North', 0.12, 0.12, 11.88, 0.12, 0.24, [pane(1.28, 3.6), pane(8.68, 2.4)]),
+    wall('Exterior · South', 0.12, 8.28, 11.88, 8.28, 0.24, [pane(1.08, 2.6), pane(5.68, 1.0)]),
+    wall('Exterior · West', 0.12, 0.12, 0.12, 8.28, 0.24, [door(1.08, 0.8, 'start', -1), pane(2.28, 1.4)]),
+    wall('Exterior · East', 11.88, 0.12, 11.88, 8.28, 0.24, [pane(4.88, 2.4)]),
+    wall('Living / Kitchen', 8, 0.24, 8, 0.8, 0.16),
+    wall('Living / Study', 8, 3.4, 8, 8.16, 0.16, [door(1.6, 0.8, 'start', -1)]),
+    wall('Bedroom / Bath', 5, 4.68, 5, 8.16, 0.16),
+    wall('Living / Bedroom', 0.24, 4.6, 7.92, 4.6, 0.16, [door(3.16, 0.8, 'start', 1), door(5.56, 0.72, 'end', 1)]),
+    wall('Kitchen / Study', 8.08, 3.8, 11.76, 3.8, 0.16),
   ];
 
   // Listed top-down as in the Layers panel (07): the first entry paints last,

@@ -19,11 +19,16 @@
   --color-tool-soft: var(--pw-tool-soft);
   --color-tool-border: var(--pw-tool-border);
   --color-tool-region: var(--pw-tool-region);
+  --color-tool-tint: var(--pw-tool-tint);
+  --color-on-ink: var(--pw-on-ink);
+  --color-on-ink-accent: var(--pw-on-ink-accent);
   --color-success: var(--pw-success);
   --color-warning: var(--pw-warning);
 
   --shadow-float: var(--pw-shadow-float);
   --shadow-drag: var(--pw-shadow-drag);
+  --shadow-toast: var(--pw-shadow-toast);
+  --shadow-hint: var(--pw-shadow-hint);
 
   --font-sans: var(--pw-font-sans);
   --font-mono: var(--pw-font-mono);
@@ -71,4 +76,14 @@ body {
   font-family: var(--pw-font-sans);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Undo toast countdown (design 09: tool-coloured bar under the toast). */
+@keyframes pw-countdown {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
 }

@@ -19,10 +19,10 @@ describe('walls, doors and windows as layer items', () => {
     expect(rows.filter((r) => r.indent)).toHaveLength(10);
     // Left exterior wall: its door and window follow it directly.
     const left = rows.findIndex((r) => r.key === 'w_3');
-    expect(rows.slice(left, left + 3).map((r) => r.label)).toEqual([
-      'Exterior wall · 8.40 m',
-      'Door · 0.80 m',
-      'Window · 1.40 m',
+    expect(rows.slice(left, left + 3).map((r) => `${r.label} ${r.meta}`)).toEqual([
+      'Exterior · West 8.16 m',
+      'Door 0.80 m',
+      'Window 1.40 m',
     ]);
   });
 

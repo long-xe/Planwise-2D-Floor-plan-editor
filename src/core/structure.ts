@@ -1,6 +1,7 @@
 import type { Doc, Opening, SceneObject, Wall } from './document';
 import { findObject } from './document';
 import { openingShape } from '../geometry/openings';
+import { wallPolygon } from '../geometry/walls';
 import { footprintToWorld } from '../geometry/transform';
 import type { Vec2 } from '../geometry/vec';
 
@@ -27,24 +28,26 @@ export function kindName(o: SceneObject): string {
   return o.type === 'door' ? 'Door' : 'Window';
 }
 
-/** Row label with its size, for telling pieces apart ("Window · 3.60 m"). */
-export function objectLabel(o: SceneObject): string {
-  if (o.kind === 'furniture') return o.name;
-  const size = o.kind === 'wall' ? wallLength(o) : o.width;
-  return `${kindName(o)} · ${size.toFixed(2)} m`;
+/** A piece's own name: a wall's room-based name ("Kitchen / Study") when it has one. */
+export function displayName(o: SceneObject): string {
+  return o.kind === 'wall' && o.name ? o.name : kindName(o);
 }
 
-/** Wall body as a quad across its thickness. */
+/** Size of a wall (length) or opening (width) in metres; null for furniture. */
+export function structureSize(o: SceneObject): number | null {
+  if (o.kind === 'wall') return wallLength(o);
+  return o.kind === 'opening' ? o.width : null;
+}
+
+/** Label with its size, for telling pieces apart ("Window · 3.60 m"). */
+export function objectLabel(o: SceneObject): string {
+  const size = structureSize(o);
+  return size === null ? displayName(o) : `${displayName(o)} · ${size.toFixed(2)} m`;
+}
+
+/** Wall body as a quad across its thickness (square ends; the renderer adds mitres). */
 export function wallQuad(w: Wall): Vec2[] {
-  const len = wallLength(w) || 1;
-  const nx = (-(w.b.y - w.a.y) / len) * (w.thickness / 2);
-  const ny = ((w.b.x - w.a.x) / len) * (w.thickness / 2);
-  return [
-    { x: w.a.x + nx, y: w.a.y + ny },
-    { x: w.b.x + nx, y: w.b.y + ny },
-    { x: w.b.x - nx, y: w.b.y - ny },
-    { x: w.a.x - nx, y: w.a.y - ny },
-  ];
+  return wallPolygon(w, null, false);
 }
 
 /** World outline used for picking, marquee and the selection highlight. */

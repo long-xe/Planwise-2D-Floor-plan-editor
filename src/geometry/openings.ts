@@ -1,5 +1,6 @@
 import type { Opening, Wall } from '../core/document';
 import type { Vec2 } from './vec';
+import { wallFaces } from './walls';
 
 export interface OpeningShape {
   /** The cut through the wall: four corners across its full thickness. */
@@ -27,18 +28,21 @@ export function openingShape(
   const len = Math.hypot(dx, dy) || 1;
   const u = { x: dx / len, y: dy / len };
   const n = { x: -u.y, y: u.x };
-  const half = wall.thickness / 2;
+  // Faces per the wall's alignment; the pane line runs midway between them.
+  const { left, right } = wallFaces(wall);
+  const mid = (left - right) / 2;
   const start = add(wall.a, u, o.offset);
   const end = add(start, u, o.width);
   const shape: OpeningShape = {
-    cut: [add(start, n, half), add(end, n, half), add(end, n, -half), add(start, n, -half)],
-    axis: [start, end],
+    cut: [add(start, n, left), add(end, n, left), add(end, n, -right), add(start, n, -right)],
+    axis: [add(start, n, mid), add(end, n, mid)],
   };
   if (o.type === 'door') {
     const side = o.swing ?? 1;
+    const face = side > 0 ? left : -right;
     const [hingeJamb, farJamb] = o.hinge === 'end' ? [end, start] : [start, end];
-    const hinge = add(hingeJamb, n, side * half);
-    shape.door = { hinge, leafEnd: add(hinge, n, side * o.width), closedEnd: add(farJamb, n, side * half) };
+    const hinge = add(hingeJamb, n, face);
+    shape.door = { hinge, leafEnd: add(hinge, n, side * o.width), closedEnd: add(farJamb, n, face) };
   }
   return shape;
 }

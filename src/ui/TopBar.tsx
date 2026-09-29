@@ -18,6 +18,8 @@ const ZOOM_STEPS = [0.1, 0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8];
 export function TopBar({ canvasCenter }: { canvasCenter(): { x: number; y: number } }) {
   const store = useEditor();
   const { stack, viewport } = store;
+  // "Saved" once autosave has written the project; otherwise what is waiting (09).
+  const save = store.history.saveLabel;
 
   const stepZoom = (dir: 1 | -1) => {
     const z = viewport.zoom;
@@ -38,8 +40,8 @@ export function TopBar({ canvasCenter }: { canvasCenter(): { x: number; y: numbe
         <span className="ml-1.5 font-semibold text-ink">{store.doc.name}</span>
         <Icon src={chev} w={6} h={3} className="mr-[17px] ml-[9px]" />
       </nav>
-      <Icon src={savedDot} w={6} h={6} />
-      <span className="ml-1 font-mono text-10 text-muted">Saved</span>
+      {save.saved ? <Icon src={savedDot} w={6} h={6} /> : <span className="size-[6px] rounded-full bg-warning" />}
+      <span className="ml-1 font-mono text-10 text-muted">{save.text}</span>
 
       <div className="absolute left-[628px] flex items-center gap-2">
         <div className="flex h-[30px] w-[72px] items-center gap-4 rounded-[4px] border border-line bg-sunken px-[10px]">

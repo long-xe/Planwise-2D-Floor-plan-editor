@@ -1,6 +1,6 @@
 import type { Command } from './commands';
-import type { Doc, Furniture, Group, SceneObject } from './document';
-import { findFurniture, findObject, isEditable } from './document';
+import type { Doc, Group, SceneObject } from './document';
+import { findFurniture, findLayer, findObject, isEditable } from './document';
 
 const editable = (doc: Doc, ids: readonly string[]) =>
   ids.every((id) => {
@@ -43,7 +43,8 @@ export class BatchCommand implements Command {
  */
 export class DeleteCommand implements Command {
   readonly type = 'Delete';
-  private readonly removed: { index: number; obj: SceneObject }[];
+  /** What was removed, kept for undo (and for naming it in History after it's gone). */
+  readonly removed: { index: number; obj: SceneObject }[];
 
   constructor(
     doc: Doc,
@@ -76,11 +77,11 @@ export class DeleteCommand implements Command {
   }
 }
 
-/** Adds new objects (and their groups) on top of the paint order: Duplicate. */
+/** Adds new objects (and their groups) on top of the paint order: Duplicate, AddWall. */
 export class AddObjectsCommand implements Command {
   constructor(
     readonly type: string,
-    private readonly objects: Furniture[],
+    readonly objects: SceneObject[],
     private readonly groups: Group[],
     public ts: number = Date.now(),
   ) {}
@@ -91,6 +92,14 @@ export class AddObjectsCommand implements Command {
 
   describe(): string {
     return `${this.type}Command(${this.ids.join(', ')})`;
+  }
+
+  /** Model rule: nothing lands on a locked or hidden layer. */
+  canExecute(doc: Doc): boolean {
+    return this.objects.every((o) => {
+      const layer = findLayer(doc, o.layerId);
+      return !!layer && layer.visible && !layer.locked;
+    });
   }
 
   execute(doc: Doc): void {
@@ -140,7 +149,8 @@ export class GroupCommand implements Command {
     for (const [id, prev] of this.previous) {
       const f = findFurniture(doc, id);
       if (!f) continue;
-      if (prev === undefined) delete f.groupId;
+      // == null: a persisted history brings `undefined` back as null (JSON).
+      if (prev == null) delete f.groupId;
       else f.groupId = prev;
     }
     doc.groups = doc.groups.filter((g) => g.id !== this.group.id);

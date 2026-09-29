@@ -7,6 +7,8 @@ import { contentBounds } from '../core/layerStats';
 import { rotateKnobPosition, selectionFrame } from '../tools/selectionFrame';
 import { drawBroadphase, drawHitRegions } from './hitDebug';
 import { drawMarquee, drawMultiSelection } from './multiSelection';
+import { drawRedoPreview } from './historyPreview';
+import { drawWallOverlay } from './wallOverlay';
 import { drawStructureSelection } from './structureOverlay';
 import { pill } from './pill';
 import type { CanvasTheme } from './theme';
@@ -19,7 +21,9 @@ export function drawOverlay(g: CanvasRenderingContext2D, store: EditorStore, vie
   const v = store.viewport;
   if (store.hit.showBroadphase) drawBroadphase(g, store, view, theme);
 
-  const frame = selectionFrame(store);
+  // The Wall tool doesn't edit the selection, so its chrome would only get in the way.
+  const selecting = store.tools.active === 'select';
+  const frame = selecting ? selectionFrame(store) : null;
   if (frame?.kind === 'single') {
     const f = frame.f;
     drawSelection(g, store, f, theme, true);
@@ -29,7 +33,9 @@ export function drawOverlay(g: CanvasRenderingContext2D, store: EditorStore, vie
     drawMultiSelection(g, store, frame.box, frame.padded, theme);
   }
   if (store.activeLayerId) drawLockedOutlines(g, store, theme);
-  drawStructureSelection(g, store, theme);
+  if (selecting) drawStructureSelection(g, store, theme);
+  drawRedoPreview(g, store, theme);
+  drawWallOverlay(g, store, theme);
   const mq = store.feedback.marquee;
   if (mq) drawMarquee(g, store, mq.rect, theme);
   // Hover debugging only while idle: during a drag the report is stale.

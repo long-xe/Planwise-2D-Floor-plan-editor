@@ -149,3 +149,11 @@ export function marqueePick(index: HitIndex, r: Rect, marquee: MarqueeMode, mode
   }
   return index.sortTopDown(out);
 }
+
+/** "Log hit-test timings" console line (07). */
+export function hitLogLine(hit: HitReport, avgMs: number): string {
+  return (
+    `[hit-test] ${hit.mode} · ${hit.candidates} bbox candidates · ${hit.polygonTests} polygon tests · ` +
+    `${hit.id ?? 'none'} · ${avgMs.toFixed(3)} ms avg`
+  );
+}

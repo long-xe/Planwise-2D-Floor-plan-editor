@@ -24,8 +24,13 @@
   --pw-tool-soft: rgba(217, 98, 59, 0.12);
   --pw-tool-border: rgba(217, 98, 59, 0.5);
   --pw-tool-region: rgba(217, 98, 59, 0.15); /* legend: polygon hit region */
+  --pw-tool-tint: rgba(217, 98, 59, 0.08); /* History: HEAD row */
+  --pw-on-ink: #e4e9f1; /* text on ink surfaces (code block, toast) */
+  --pw-on-ink-accent: #9db8e3; /* keywords / actions on ink surfaces */
   --pw-shadow-float: 0 4px 14px rgba(0, 0, 0, 0.08); /* floating canvas cards */
   --pw-shadow-drag: 0 8px 20px rgba(27, 42, 65, 0.16); /* layer card being dragged */
+  --pw-shadow-toast: 0 6px 18px rgba(27, 42, 65, 0.18); /* undo toast */
+  --pw-shadow-hint: 0 2px 8px rgba(0, 0, 0, 0.06); /* tool hint bar */
   --pw-success: #6e9b7b; /* toggles on, saved, fps ok */
   --pw-warning: #e0a526;
 

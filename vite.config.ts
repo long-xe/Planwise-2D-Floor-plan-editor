@@ -13,7 +13,12 @@ export default defineConfig({
     // Plain `icon.svg` imports stay URLs (fixed-colour icons).
     svgr({
       svgrOptions: {
-        replaceAttrValues: { '#75706A': 'currentColor', '#2F5DA8': 'currentColor', '#1B2A41': 'currentColor' },
+        replaceAttrValues: {
+          '#75706A': 'currentColor',
+          '#2F5DA8': 'currentColor',
+          '#1B2A41': 'currentColor',
+          '#D9623B': 'currentColor',
+        },
       },
     }),
   ],

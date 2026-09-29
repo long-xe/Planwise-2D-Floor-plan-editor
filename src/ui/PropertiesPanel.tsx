@@ -2,9 +2,11 @@ import type { Furniture } from '../core/document';
 import { findLayer } from '../core/document';
 import { normalizeRotation } from '../geometry/transform';
 import { AppearanceSection } from './AppearanceSection';
+import { HistoryInspector } from './HistoryInspector';
 import { HitDetectionSection } from './HitDetectionSection';
 import { LayerPanel } from './LayerPanel';
 import { StructurePanel } from './StructurePanel';
+import { WallToolPanel } from './WallToolPanel';
 import { AlignSection, MultiSelectionHeader, SelectionBoundsSection } from './MultiSelectionPanel';
 import { IconButton, NumberField, Section } from './controls';
 import { Icon } from './Icon';
@@ -32,7 +34,11 @@ export function PropertiesPanel() {
     // at +16), so use an inset shadow rather than a border that takes up width.
     <aside className="flex min-h-0 flex-col overflow-y-auto bg-surface shadow-[inset_1px_0_0_var(--pw-border)]">
       <Tabs tabs={['Properties', 'Document']} active="Properties" />
-      {layer ? (
+      {!layer && store.history.tab === 'history' ? (
+        <HistoryInspector />
+      ) : !layer && store.tools.active === 'wall' ? (
+        <WallToolPanel />
+      ) : layer ? (
         <LayerPanel layer={layer} />
       ) : structural.length ? (
         <StructurePanel ids={structural} />

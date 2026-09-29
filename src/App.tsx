@@ -1,12 +1,16 @@
 import { useMemo } from 'react';
 import { pickAt } from './core/picking';
+import { browserStorage } from './core/persistence';
 import { EditorStore } from './core/store';
 import { createDemoDoc } from './library/demoScene';
 import { RULER_PX } from './render/rulers';
 import { SelectTool } from './tools/SelectTool';
+import { WallTool } from './tools/WallTool';
 import { CanvasView } from './ui/CanvasView';
 import { HitDebugPanel } from './ui/HitDebugPanel';
 import { LayerBadges } from './ui/LayerBadges';
+import { UndoToast } from './ui/UndoToast';
+import { WallToolHint } from './ui/WallToolHint';
 import { LeftPanel } from './ui/LeftPanel';
 import { PropertiesPanel } from './ui/PropertiesPanel';
 import { StatusBar } from './ui/StatusBar';
@@ -27,26 +31,28 @@ function canvasCenter() {
 
 export function App() {
   const store = useMemo(() => {
-    const s = new EditorStore(createDemoDoc());
+    const s = new EditorStore(createDemoDoc(), browserStorage());
     s.viewport = { ...s.viewport, panX: INITIAL_PAN.x, panY: INITIAL_PAN.y };
     // Open on the design's state: the king bed selected, as if just clicked.
     s.selection = ['f_0217'];
     s.lastHit = pickAt(s.hitIndex, { x: 2.4, y: 6.4 });
     return s;
   }, []);
-  const tool = useMemo(() => new SelectTool(), []);
+  const tools = useMemo(() => ({ select: new SelectTool(), wall: new WallTool() }), []);
 
   return (
     <StoreContext.Provider value={store}>
       <div className="grid h-full min-w-[1200px] grid-rows-[var(--spacing-topbar)_1fr_var(--spacing-statusbar)] text-ink">
         <TopBar canvasCenter={canvasCenter} />
         <div className="grid min-h-0 grid-cols-[var(--spacing-rail)_auto_1fr_var(--spacing-right)]">
-          <ToolRail active={tool.id} />
+          <ToolRail />
           <LeftPanel />
           <main className="relative min-w-0 overflow-hidden bg-canvas">
-            <CanvasView tool={tool} />
+            <CanvasView tools={tools} />
             <HitDebugPanel />
             <LayerBadges />
+            <UndoToast />
+            <WallToolHint />
           </main>
           <PropertiesPanel />
         </div>
