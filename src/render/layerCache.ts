@@ -28,6 +28,8 @@ interface Entry {
  */
 export class LayerCache {
   private readonly entries = new Map<string, Entry>();
+  /** When a bitmap was last repainted (performance.now), for "rebuilt 41 s ago". */
+  rebuiltAt: number | null = null;
 
   /** Blits `layer` from cache, repainting it first when stale. */
   draw(
@@ -56,6 +58,7 @@ export class LayerCache {
       paint(cg);
       e = { surface, key };
       this.entries.set(layer.id, e);
+      this.rebuiltAt = performance.now();
     }
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
@@ -63,6 +66,12 @@ export class LayerCache {
     g.drawImage(e.surface, 0, 0);
     g.restore();
     return state;
+  }
+
+  /** The first cached bitmap (the Performance tab previews it). */
+  get surface(): Surface | null {
+    for (const e of this.entries.values()) return e.surface;
+    return null;
   }
 
   /** Drops bitmaps of layers that are no longer static. */

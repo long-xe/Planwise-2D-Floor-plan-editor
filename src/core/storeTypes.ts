@@ -1,3 +1,4 @@
+import type { PerfSnapshot } from './perf';
 import type { HitMode, MarqueeMode } from './picking';
 import type { Guide } from './snapping';
 import type { Rect, Vec2 } from '../geometry/vec';
@@ -39,4 +40,6 @@ export interface FrameStats {
   cache: 'hit' | 'miss' | 'none';
   /** Objects drawn per layer on the last drawn frame. */
   layerDraws: Readonly<Record<string, number>>;
+  /** Perf HUD readouts (11), only while the HUD is open. */
+  perf: PerfSnapshot | null;
 }

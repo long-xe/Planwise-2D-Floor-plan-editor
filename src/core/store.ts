@@ -14,6 +14,7 @@ import {
 import { duplicateCommand, editObjectsCommand, groupCommand, offsetsCommand, resizeUnitsCommand } from './editActions';
 import { HistoryController } from './historyController';
 import { ToolState } from './toolState';
+import { PerfState } from './perfState';
 import { HitIndex, type HitReport, hitLogLine } from './picking';
 import { DEFAULT_HIT, type FrameStats, type HitSettings, type ToolFeedback } from './storeTypes';
 import { type SelectionUnit, expandGroups, selectionUnits, unitsBounds } from './selection';
@@ -38,6 +39,8 @@ export class EditorStore {
   readonly history: HistoryController;
   /** Active tool and the Wall tool's settings / chain (04). */
   readonly tools: ToolState = new ToolState(this);
+  /** Perf HUD, renderer switches and frame timing (11). */
+  readonly perf: PerfState = new PerfState(this);
   selection: string[] = [];
   /** Layer open in the Layers manager (08): wide left panel, layer in the right panel. */
   activeLayerId: string | null = null;
@@ -56,7 +59,7 @@ export class EditorStore {
    * single sample reads 0 or 0.1; the average of many converges on the truth.
    */
   hitCostMs = 0;
-  stats: FrameStats = { fps: 0, frameMs: 0, cursor: { x: 0, y: 0 }, cache: 'none', layerDraws: {} };
+  stats: FrameStats = { fps: 0, frameMs: 0, cursor: { x: 0, y: 0 }, cache: 'none', layerDraws: {}, perf: null };
 
   /** Set on any visible change; the render loop clears it after drawing. */
   dirty = true;
@@ -113,6 +116,7 @@ export class EditorStore {
 
   private sampleCost(r: HitReport): void {
     this.hitCostMs = this.hitCostMs === 0 ? r.ms : this.hitCostMs * 0.95 + r.ms * 0.05;
+    this.perf.monitor.addHitTest(r.ms);
   }
 
   setHover(report: HitReport | null): void {

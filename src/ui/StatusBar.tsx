@@ -66,6 +66,23 @@ function FurnitureStats() {
   );
 }
 
+/** Perf HUD (11): the frame's cost and what it drew. */
+function PerfStats() {
+  const stats = useFrameStats();
+  const p = stats.perf;
+  return (
+    <>
+      <Dotted tone="success" label="FPS" value={String(stats.fps)} />
+      <Stat label="Frame" value={`${(p?.frameMs ?? stats.frameMs).toFixed(1)} ms`} />
+      <Stat label="Objects" value={String(p?.objects ?? '—')} />
+      <Stat label="Visible" value={String(p?.visible ?? '—')} />
+      <Stat label="Draw calls" value={String(p?.drawCalls ?? '—')} />
+      <Dotted tone="tool" label="Dirty" value={String(p?.dirty.regions.length ?? 0)} />
+      <Stat label="Heap" value={p?.heapMB == null ? 'n/a' : `${Math.round(p.heapMB)} MB`} />
+    </>
+  );
+}
+
 /** History tab (09): where HEAD is, how deep undo / redo go, and the last step taken. */
 function HistoryStats() {
   const store = useEditor();
@@ -115,7 +132,9 @@ export function StatusBar() {
   const picked = !!(store.hover ?? store.lastHit);
   return (
     <footer className="flex h-statusbar items-center gap-6 border-t border-line bg-surface px-4">
-      {store.activeLayerId ? (
+      {store.perf.hud ? (
+        <PerfStats />
+      ) : store.activeLayerId ? (
         <LayerStats />
       ) : store.history.tab === 'history' ? (
         <HistoryStats />
@@ -146,7 +165,9 @@ export function StatusBar() {
           )}
         </>
       )}
-      <span className="ml-auto font-mono text-10 text-muted">Canvas 2D · rAF loop · {stats.fps} fps</span>
+      <span className="ml-auto font-mono text-10 text-muted">
+        {store.perf.hud ? 'Canvas 2D · requestAnimationFrame · no library' : `Canvas 2D · rAF loop · ${stats.fps} fps`}
+      </span>
     </footer>
   );
 }

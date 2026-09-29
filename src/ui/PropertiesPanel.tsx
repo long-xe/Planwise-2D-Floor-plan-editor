@@ -8,6 +8,7 @@ import { LayerPanel } from './LayerPanel';
 import { StructurePanel } from './StructurePanel';
 import { WallToolPanel } from './WallToolPanel';
 import { FurniturePanel } from './FurniturePanel';
+import { PerfPanel } from './PerfPanel';
 import { AlignSection, MultiSelectionHeader, SelectionBoundsSection } from './MultiSelectionPanel';
 import { IconButton, NumberField, Section } from './controls';
 import { Icon } from './Icon';
@@ -34,8 +35,18 @@ export function PropertiesPanel() {
     // The design draws the divider over the panel's first column (content starts
     // at +16), so use an inset shadow rather than a border that takes up width.
     <aside className="flex min-h-0 flex-col overflow-y-auto bg-surface shadow-[inset_1px_0_0_var(--pw-border)]">
-      <Tabs tabs={['Properties', 'Document']} active="Properties" />
-      {!layer && store.history.tab === 'history' ? (
+      {store.perf.hud ? (
+        <Tabs
+          tabs={['Properties', 'Performance']}
+          active={store.perf.rightTab === 'performance' ? 'Performance' : 'Properties'}
+          onSelect={(t) => store.perf.setRightTab(t === 'Performance' ? 'performance' : 'properties')}
+        />
+      ) : (
+        <Tabs tabs={['Properties', 'Document']} active="Properties" />
+      )}
+      {store.perf.hud && store.perf.rightTab === 'performance' ? (
+        <PerfPanel />
+      ) : !layer && store.history.tab === 'history' ? (
         <HistoryInspector />
       ) : !layer && store.tools.active === 'wall' ? (
         <WallToolPanel />

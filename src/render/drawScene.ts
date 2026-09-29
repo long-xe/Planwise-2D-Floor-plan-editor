@@ -4,14 +4,17 @@ import { hostWall } from '../core/structure';
 import { openingShape } from '../geometry/openings';
 import { type WallGraph, buildWallGraph, wallPolygon } from '../geometry/walls';
 import { type Viewport, scaleOf } from '../core/viewport';
-import { type Rect, type Vec2, DEG } from '../geometry/vec';
+import type { Rect, Vec2 } from '../geometry/vec';
 import type { CanvasTheme } from './theme';
-import { drawSymbol } from './drawSymbol';
+import type { SymbolBatcher } from './batchDraw';
+import { drawCircuits, drawFixture, drawFurniture } from './drawFurniture';
 import { catalogItem } from '../library/catalog';
 
 export interface SceneCounters {
   drawn: number;
   culled: number;
+  /** Fill / stroke / drawImage calls issued. */
+  calls: number;
 }
 
 /** Grid: minor every 0.4 m, major every 2 m (design grid/minor, grid/major). */
@@ -38,43 +41,60 @@ export function drawGrid(g: CanvasRenderingContext2D, v: Viewport, view: Rect, t
   line(2, theme.gridMajor);
 }
 
+/** One layer draw's inputs: where, what's in view, and how to paint it. */
+export interface LayerPass {
+  v: Viewport;
+  view: Rect;
+  theme: CanvasTheme;
+  dpr: number;
+  out: SceneCounters;
+  /** Auto-join corners (04): mitred L corners instead of square ends. */
+  mitre: boolean;
+  /** Broadphase candidates from the cull index (11); null tests every piece. */
+  only: ReadonlySet<string> | null;
+  /** "Batch same-style paths" (11): catalog pieces queue here and draw per style. */
+  batch: SymbolBatcher | null;
+}
+
 /**
  * Draws one layer's objects (walls, furniture, fixtures). Returns how many
- * objects were drawn, for the per-layer "N draws" in the Layers manager.
+ * objects were drawn, for the per-layer "N draws" in the Layers manager;
+ * fill / stroke calls add up in `out.calls` (the Perf HUD's draw calls).
  */
 export function drawLayer(
   g: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
   doc: Doc,
   layer: Layer,
-  v: Viewport,
-  view: Rect,
-  theme: CanvasTheme,
-  dpr: number,
-  out: SceneCounters,
-  /** Auto-join corners (04): mitred L corners instead of square ends. */
-  mitre = true,
+  p: LayerPass,
 ): number {
+  const { v, view, theme, dpr, out } = p;
   let drawn = 0;
+  let calls = 0;
   // One graph per layer draw: every wall needs its neighbours for its corners.
   const walls = doc.objects.filter((o): o is Wall => o.kind === 'wall' && o.layerId === layer.id);
   const graph = walls.length ? buildWallGraph(walls) : null;
   for (const o of doc.objects) {
     if (o.layerId !== layer.id) continue;
     if (o.kind === 'wall') {
-      drawWall(g, o, graph, mitre, v, theme);
+      drawWall(g, o, graph, p.mitre, v, theme);
       drawn++;
+      calls++;
     } else if (o.kind === 'opening') {
       // Drawn after every wall (drawOpenings) so no wall paints over a cut.
       drawn++;
-    } else if (visible(o, view)) {
-      if (isFixture(o.icon)) drawFixture(g, o, v, dpr, layer.color, theme);
-      else drawFurniture(g, o, v, dpr);
+    } else if ((!p.only || p.only.has(o.id)) && visible(o, view)) {
+      const item = p.batch && !isFixture(o.icon) ? catalogItem(o.catalogId) : undefined;
+      if (item) p.batch!.add(o, item);
+      else if (isFixture(o.icon)) calls += drawFixture(g, o, v, dpr, layer.color, theme);
+      else calls += drawFurniture(g, o, v, dpr);
       drawn++;
     } else out.culled++;
   }
-  drawOpenings(g, doc, layer, v, theme);
-  drawCircuits(g, doc, layer, v);
+  if (p.batch) calls += p.batch.flush(g, v, dpr);
+  calls += drawOpenings(g, doc, layer, v, theme);
+  calls += drawCircuits(g, doc, layer, v);
   out.drawn += drawn;
+  out.calls += calls;
   return drawn;
 }
 
@@ -98,7 +118,8 @@ const WINDOW_PANE_PX = 0.8;
  * canvas colour and draw an open leaf plus its swing arc; windows draw a
  * glass pane with a 1 px frame inside the cut and a centre line.
  */
-function drawOpenings(g: Ctx2D, doc: Doc, layer: Layer, v: Viewport, theme: CanvasTheme): void {
+function drawOpenings(g: Ctx2D, doc: Doc, layer: Layer, v: Viewport, theme: CanvasTheme): number {
+  let calls = 0;
   const s = scaleOf(v);
   const P = (p: Vec2) => ({ x: p.x * s + v.panX, y: p.y * s + v.panY });
   const quad = (pts: readonly Vec2[]) => {
@@ -135,6 +156,7 @@ function drawOpenings(g: Ctx2D, doc: Doc, layer: Layer, v: Viewport, theme: Canv
       g.strokeStyle = theme.ink;
       g.lineWidth = WINDOW_PANE_PX;
       g.stroke();
+      calls += 3;
       continue;
     }
     quad(shape.cut);
@@ -157,8 +179,10 @@ function drawOpenings(g: Ctx2D, doc: Doc, layer: Layer, v: Viewport, theme: Canv
     g.arc(h.x, h.y, o.width * s, a0, a1, sweep < 0);
     g.lineWidth = DOOR_ARC_PX;
     g.stroke();
+    calls += 3;
   }
   g.lineCap = 'butt';
+  return calls;
 }
 
 function drawWall(g: Ctx2D, w: Wall, graph: WallGraph | null, mitre: boolean, v: Viewport, theme: CanvasTheme): void {
@@ -173,129 +197,4 @@ function drawWall(g: Ctx2D, w: Wall, graph: WallGraph | null, mitre: boolean, v:
   g.closePath();
   g.fillStyle = theme.ink;
   g.fill();
-}
-
-// Hoisted so the per-object draw doesn't allocate.
-const RUG_DASH = [4, 3];
-const NO_DASH: number[] = [];
-
-function localFrame(g: Ctx2D, f: Furniture, v: Viewport, dpr: number): { w: number; h: number } {
-  const s = scaleOf(v);
-  const t = f.transform;
-  const c = Math.cos(t.rotation * DEG);
-  const sn = Math.sin(t.rotation * DEG);
-  const fx = t.flipX ? -1 : 1;
-  const k = dpr;
-  g.setTransform(c * fx * k, sn * fx * k, -sn * k, c * k, (t.x * s + v.panX) * k, (t.y * s + v.panY) * k);
-  return { w: t.w * s, h: t.h * s };
-}
-
-function footprintPath(g: Ctx2D, f: Furniture, w: number, h: number): void {
-  g.beginPath();
-  const p0 = f.footprint[0]!;
-  g.moveTo(p0.x * w, p0.y * h);
-  for (let i = 1; i < f.footprint.length; i++) g.lineTo(f.footprint[i]!.x * w, f.footprint[i]!.y * h);
-  g.closePath();
-}
-
-/**
- * Electrical symbols (design 08): outlet half-disc on the wall, "S" switch
- * box, ceiling light circle with a cross. Stroked in the layer colour so
- * recolouring the layer recolours its symbols.
- */
-function drawFixture(g: Ctx2D, f: Furniture, v: Viewport, dpr: number, color: string, theme: CanvasTheme): void {
-  const { w, h } = localFrame(g, f, v, dpr);
-  const z = scaleOf(v) / 50;
-  g.fillStyle = theme.surface;
-  g.strokeStyle = color;
-  if (f.icon === 'switch') {
-    g.beginPath();
-    g.roundRect(-w / 2, -h / 2, w, h, 2 * z);
-    g.fill();
-    g.lineWidth = 1.25;
-    g.stroke();
-    g.fillStyle = color;
-    g.font = `700 ${10 * z}px ${theme.fontSans}`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText('S', 0, 0.5 * z);
-    g.textAlign = 'left';
-  } else if (f.icon === 'light') {
-    g.beginPath();
-    g.arc(0, 0, w / 2, 0, Math.PI * 2);
-    g.fill();
-    g.lineWidth = 1.5;
-    g.stroke();
-    // Cross spans 12 of the 18 px disc in the design.
-    const r = (w / 2) * (6 / 9) * Math.SQRT1_2;
-    g.beginPath();
-    g.moveTo(-r, -r);
-    g.lineTo(r, r);
-    g.moveTo(r, -r);
-    g.lineTo(-r, r);
-    g.lineWidth = 1.25;
-    g.stroke();
-  } else {
-    footprintPath(g, f, w, h);
-    g.fill();
-    g.lineWidth = 1.5;
-    g.stroke();
-  }
-  g.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-
-const WIRE_DASH = [4, 3];
-
-/** Dashed home-run from each switch to the lights on its circuit, bowed like a hand-drawn wire. */
-function drawCircuits(g: Ctx2D, doc: Doc, layer: Layer, v: Viewport): void {
-  const s = scaleOf(v);
-  let started = false;
-  for (const sw of doc.objects) {
-    if (sw.kind !== 'furniture' || sw.layerId !== layer.id || sw.icon !== 'switch' || !sw.circuit) continue;
-    for (const light of doc.objects) {
-      if (light.kind !== 'furniture' || light.icon !== 'light' || light.circuit !== sw.circuit) continue;
-      if (!started) {
-        g.beginPath();
-        started = true;
-      }
-      const a = { x: sw.transform.x * s + v.panX, y: sw.transform.y * s + v.panY };
-      const b = { x: light.transform.x * s + v.panX, y: light.transform.y * s + v.panY };
-      const len = Math.hypot(b.x - a.x, b.y - a.y);
-      g.moveTo(a.x, a.y);
-      g.quadraticCurveTo((a.x + b.x) / 2, Math.min(a.y, b.y) - len * 0.25, b.x, b.y);
-    }
-  }
-  if (!started) return;
-  g.setLineDash(WIRE_DASH);
-  g.strokeStyle = layer.color;
-  g.lineWidth = 1;
-  g.stroke();
-  g.setLineDash(NO_DASH);
-}
-
-/** Draws in the object's local frame via the context transform: no per-point allocations. */
-function drawFurniture(g: Ctx2D, f: Furniture, v: Viewport, dpr: number): void {
-  const { w, h } = localFrame(g, f, v, dpr);
-  const item = catalogItem(f.catalogId);
-  if (item) {
-    drawSymbol(g, item.parts, f.appearance, w, h, scaleOf(v) / 50);
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return;
-  }
-  if (f.footprint.length === 4) {
-    g.beginPath();
-    g.roundRect(-w / 2, -h / 2, w, h, Math.min(3, w / 4, h / 4));
-  } else footprintPath(g, f, w, h);
-  const a = f.appearance;
-  const alpha = g.globalAlpha;
-  g.globalAlpha = alpha * a.fillOpacity;
-  g.fillStyle = a.fill;
-  g.fill();
-  g.globalAlpha = alpha;
-  g.strokeStyle = a.stroke;
-  g.lineWidth = a.strokeWidth;
-  if (a.dashed) g.setLineDash(RUG_DASH);
-  g.stroke();
-  if (a.dashed) g.setLineDash(NO_DASH);
-  g.setTransform(dpr, 0, 0, dpr, 0, 0);
 }

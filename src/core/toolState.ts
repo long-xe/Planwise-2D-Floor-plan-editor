@@ -4,7 +4,7 @@ import type { EditorStore } from './store';
 import type { WallAngleOption, WallSnapKind } from './wallSnap';
 import type { Vec2 } from '../geometry/vec';
 
-export type ToolId = 'select' | 'wall' | 'furniture';
+export type ToolId = 'select' | 'hand' | 'wall' | 'furniture';
 
 /** Wall tool settings (right panel, design 04). */
 export interface WallSettings {

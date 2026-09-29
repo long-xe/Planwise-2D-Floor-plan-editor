@@ -5,7 +5,7 @@ import type { ToolId } from '../core/toolState';
 import type { Tool, ToolContext, ToolPointerEvent } from '../tools/Tool';
 import { useEditorStoreRef } from './useStore';
 
-const TOOL_KEYS: Record<string, ToolId> = { v: 'select', w: 'wall', f: 'furniture' };
+const TOOL_KEYS: Record<string, ToolId> = { v: 'select', h: 'hand', w: 'wall', f: 'furniture' };
 
 /**
  * Hosts the canvas and forwards input to the active tool. The render loop
@@ -14,11 +14,13 @@ const TOOL_KEYS: Record<string, ToolId> = { v: 'select', w: 'wall', f: 'furnitur
 export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
   const store = useEditorStoreRef();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const loop = new RenderLoop(canvas, store);
+    const overlay = overlayRef.current;
+    if (!canvas || !overlay) return;
+    const loop = new RenderLoop(canvas, overlay, store);
     loop.start();
 
     const ctx: ToolContext = { store, setCursor: (c) => (canvas.style.cursor = c) };
@@ -39,6 +41,15 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
         button: e.button,
       };
     };
+
+    // Handler time is the frame breakdown's "input" (hit-testing inside it is split out).
+    const timed =
+      <E,>(fn: (e: E) => void) =>
+      (e: E) => {
+        const t = performance.now();
+        fn(e);
+        store.perf.monitor.addInput(performance.now() - t);
+      };
 
     const down = (e: PointerEvent) => {
       canvas.setPointerCapture(e.pointerId);
@@ -80,6 +91,12 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
       }
     };
     const keydown = (e: KeyboardEvent) => {
+      // F12: Perf HUD (11), even from a text field.
+      if (e.key === 'F12') {
+        e.preventDefault();
+        store.perf.setHud(!store.perf.hud);
+        return;
+      }
       const target = e.target as HTMLElement | null;
       if (target?.closest('input, textarea')) return;
       const mod = e.metaKey || e.ctrlKey;
@@ -141,9 +158,10 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
     const blur = () => tool().cancel(ctx);
     const leave = () => tool().onPointerLeave?.(ctx);
 
-    canvas.addEventListener('pointerdown', down);
-    canvas.addEventListener('pointermove', move);
-    canvas.addEventListener('pointerup', up);
+    const [tDown, tMove, tUp] = [timed(down), timed(move), timed(up)];
+    canvas.addEventListener('pointerdown', tDown);
+    canvas.addEventListener('pointermove', tMove);
+    canvas.addEventListener('pointerup', tUp);
     canvas.addEventListener('pointercancel', blur);
     canvas.addEventListener('pointerleave', leave);
     canvas.addEventListener('wheel', wheel, { passive: false });
@@ -153,9 +171,9 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
     return () => {
       loop.stop();
       tool().cancel(ctx);
-      canvas.removeEventListener('pointerdown', down);
-      canvas.removeEventListener('pointermove', move);
-      canvas.removeEventListener('pointerup', up);
+      canvas.removeEventListener('pointerdown', tDown);
+      canvas.removeEventListener('pointermove', tMove);
+      canvas.removeEventListener('pointerup', tUp);
       canvas.removeEventListener('pointercancel', blur);
       canvas.removeEventListener('pointerleave', leave);
       canvas.removeEventListener('wheel', wheel);
@@ -165,5 +183,12 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
     };
   }, [store, tools]);
 
-  return <canvas ref={canvasRef} className="block size-full touch-none" />;
+  // Content below, overlay (selection, guides, rulers, HUD marks) above: the overlay
+  // redraws whole each frame so the content can repaint only its dirty regions.
+  return (
+    <>
+      <canvas ref={canvasRef} className="block size-full touch-none" />
+      <canvas ref={overlayRef} aria-hidden className="pointer-events-none absolute inset-0 size-full" />
+    </>
+  );
 }

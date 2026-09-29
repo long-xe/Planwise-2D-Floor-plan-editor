@@ -22,8 +22,9 @@ export function drawOverlay(g: CanvasRenderingContext2D, store: EditorStore, vie
   const v = store.viewport;
   if (store.hit.showBroadphase) drawBroadphase(g, store, view, theme);
 
-  // The Wall tool doesn't edit the selection, so its chrome would only get in the way.
-  const selecting = store.tools.active === 'select';
+  // Wall and Furniture tools don't edit the selection, so its chrome would only get in the
+  // way; the Hand only moves the view, so the selection stays visible under it.
+  const selecting = store.tools.active === 'select' || store.tools.active === 'hand';
   const frame = selecting ? selectionFrame(store) : null;
   if (frame?.kind === 'single') {
     const f = frame.f;

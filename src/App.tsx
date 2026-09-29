@@ -1,17 +1,20 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { pickAt } from './core/picking';
 import { browserStorage } from './core/persistence';
 import { EditorStore } from './core/store';
 import { createDemoDoc } from './library/demoScene';
+import { createOfficeDoc } from './library/officeScene';
 import { RULER_PX } from './render/rulers';
 import { SelectTool } from './tools/SelectTool';
 import { WallTool } from './tools/WallTool';
 import { FurnitureTool } from './tools/FurnitureTool';
+import { HandTool } from './tools/HandTool';
 import { CanvasView } from './ui/CanvasView';
 import { HitDebugPanel } from './ui/HitDebugPanel';
 import { LayerBadges } from './ui/LayerBadges';
 import { UndoToast } from './ui/UndoToast';
 import { WallToolHint } from './ui/WallToolHint';
+import { PerfHud } from './ui/PerfHud';
 import { LeftPanel } from './ui/LeftPanel';
 import { PropertiesPanel } from './ui/PropertiesPanel';
 import { StatusBar } from './ui/StatusBar';
@@ -22,6 +25,8 @@ import { StoreContext } from './ui/useStore';
 // World origin sits at the plan's exterior corner, placed where the design
 // puts it: 118 × 170 px into the drawing area, which starts after the rulers.
 const INITIAL_PAN = { x: RULER_PX + 118, y: RULER_PX + 170 };
+// Design 11 at 40 %: the rulers' 0 m sits 51 × 57 px into the canvas.
+const STRESS_PAN = { x: 51, y: 57 };
 
 /** Canvas centre in canvas pixels, the anchor for toolbar zoom. */
 function canvasCenter() {
@@ -32,6 +37,14 @@ function canvasCenter() {
 
 export function App() {
   const store = useMemo(() => {
+    // ?plan=northgate opens the Performance screen's 842-object stress plan (11),
+    // with the HUD up; it isn't autosaved, so it never replaces the Unit 4B project.
+    if (new URLSearchParams(location.search).get('plan') === 'northgate') {
+      const s = new EditorStore(createOfficeDoc(), null);
+      s.viewport = { ...s.viewport, zoom: 0.4, panX: STRESS_PAN.x, panY: STRESS_PAN.y };
+      s.perf.setHud(true);
+      return s;
+    }
     const s = new EditorStore(createDemoDoc(), browserStorage());
     s.viewport = { ...s.viewport, panX: INITIAL_PAN.x, panY: INITIAL_PAN.y };
     // Open on the design's state: the king bed selected, as if just clicked.
@@ -39,7 +52,14 @@ export function App() {
     s.lastHit = pickAt(s.hitIndex, { x: 2.4, y: 6.4 });
     return s;
   }, []);
-  const tools = useMemo(() => ({ select: new SelectTool(), wall: new WallTool(), furniture: new FurnitureTool() }), []);
+  // Dev only: lets browser tests drive and inspect the store (the one React kept, not a StrictMode double).
+  useEffect(() => {
+    if (import.meta.env.DEV) Object.assign(window, { planwise: store });
+  }, [store]);
+  const tools = useMemo(
+    () => ({ select: new SelectTool(), hand: new HandTool(), wall: new WallTool(), furniture: new FurnitureTool() }),
+    [],
+  );
 
   return (
     <StoreContext.Provider value={store}>
@@ -54,6 +74,7 @@ export function App() {
             <LayerBadges />
             <UndoToast />
             <WallToolHint />
+            <PerfHud />
           </main>
           <PropertiesPanel />
         </div>

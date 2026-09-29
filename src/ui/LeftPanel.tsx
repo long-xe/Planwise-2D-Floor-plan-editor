@@ -21,6 +21,7 @@ import eyeOff from './icons/eye-off-badge.svg';
 import { ItemGlyph } from './itemIcons';
 import { HistoryPanel } from './HistoryPanel';
 import { LibraryPanel } from './LibraryPanel';
+import { PerfLayers } from './PerfLayers';
 import { LayersManager } from './LayersManager';
 import { cn } from './cn';
 import { LeftTabs } from './PanelTabs';
@@ -32,6 +33,7 @@ export function LeftPanel() {
   // Each tool keeps its own open rows: the Wall tool opens only Walls (design 04).
   const [open, setOpen] = useState<Record<ToolId, Record<string, boolean>>>({
     select: { furniture: true },
+    hand: { furniture: true },
     wall: { walls: true },
     furniture: { furniture: true },
   });
@@ -42,6 +44,8 @@ export function LeftPanel() {
   if (store.activeLayerId) return <LayersManager />;
   if (store.history.tab === 'history') return <HistoryPanel />;
   if (store.history.tab === 'library') return <LibraryPanel />;
+  // Perf HUD up (11): the Layers tab shows cost per layer, culling and frame history.
+  if (store.perf.hud) return <PerfLayers />;
 
   return (
     <aside className="flex min-h-0 w-left flex-col border-r border-line bg-surface">
