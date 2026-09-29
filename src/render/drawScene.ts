@@ -4,9 +4,10 @@ import { hostWall } from '../core/structure';
 import { openingShape } from '../geometry/openings';
 import { type WallGraph, buildWallGraph, wallPolygon } from '../geometry/walls';
 import { type Viewport, scaleOf } from '../core/viewport';
-import type { Rect, Vec2 } from '../geometry/vec';
-import { DEG } from '../geometry/vec';
+import { type Rect, type Vec2, DEG } from '../geometry/vec';
 import type { CanvasTheme } from './theme';
+import { drawSymbol } from './drawSymbol';
+import { catalogItem } from '../library/catalog';
 
 export interface SceneCounters {
   drawn: number;
@@ -275,6 +276,12 @@ function drawCircuits(g: Ctx2D, doc: Doc, layer: Layer, v: Viewport): void {
 /** Draws in the object's local frame via the context transform: no per-point allocations. */
 function drawFurniture(g: Ctx2D, f: Furniture, v: Viewport, dpr: number): void {
   const { w, h } = localFrame(g, f, v, dpr);
+  const item = catalogItem(f.catalogId);
+  if (item) {
+    drawSymbol(g, item.parts, f.appearance, w, h, scaleOf(v) / 50);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return;
+  }
   if (f.footprint.length === 4) {
     g.beginPath();
     g.roundRect(-w / 2, -h / 2, w, h, Math.min(3, w / 4, h / 4));

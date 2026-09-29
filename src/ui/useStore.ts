@@ -1,5 +1,6 @@
 import { createContext, useContext, useSyncExternalStore } from 'react';
 import type { EditorStore, FrameStats } from '../core/store';
+import type { Ghost } from '../core/furnitureState';
 import type { WallDraft } from '../core/toolState';
 
 export const StoreContext = createContext<EditorStore | null>(null);
@@ -31,4 +32,11 @@ export function useWallDraft(): WallDraft | null {
   const store = useContext(StoreContext);
   if (!store) throw new Error('StoreContext missing');
   return useSyncExternalStore(store.tools.subscribeDraft, store.tools.getDraft);
+}
+
+/** The Furniture tool's ghost (05), on its own channel like the wall draft. */
+export function useGhost(): Ghost | null {
+  const store = useContext(StoreContext);
+  if (!store) throw new Error('StoreContext missing');
+  return useSyncExternalStore(store.tools.furniture.subscribeGhost, store.tools.furniture.getGhost);
 }

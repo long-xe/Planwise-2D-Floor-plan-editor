@@ -4,6 +4,10 @@ import { findFurniture, findGroup, findLayer, findObject } from './document';
 import { AddLayerCommand, DeleteLayerCommand, LayerPropsCommand, ReorderLayerCommand } from './layerCommands';
 import { displayName, kindName, objectLabel, wallLength } from './structure';
 import { AddObjectsCommand, BatchCommand, DeleteCommand, EditObjectsCommand, GroupCommand } from './structureCommands';
+import { footprintToWorld } from '../geometry/transform';
+import { boundsOf } from '../geometry/vec';
+
+const round2 = (v: number) => Math.round(v * 100) / 100;
 
 export type HistoryIcon =
   | 'move'
@@ -188,7 +192,8 @@ export function entryView(c: Command, doc: Doc): EntryView {
     // One new piece reads with its size ("Kitchen / Study · 2.60 m", design 09).
     const one = c.objects.length === 1 ? c.objects[0]! : null;
     const detail = one ? objectLabel(one) : `${c.objects.length} objects`;
-    const human = `${c.type === 'AddWall' ? 'Add wall' : c.type} ${short(one ? displayName(one) : detail)}`;
+    const verb = c.type === 'AddWall' ? 'Add wall' : c.type === 'PlaceFurniture' ? 'Place' : c.type;
+    const human = `${verb} ${short(one ? displayName(one) : detail)}`;
     return { title: c.type, detail, icon: glyphOf(one ?? c.objects[0]), category: 'geometry', human, children: [] };
   }
   if (c instanceof GroupCommand) {
@@ -247,7 +252,23 @@ export function entryPayload(c: Command, doc: Doc): Record<string, unknown> {
   if (c instanceof DeleteCommand) return { type: 'Delete', targets: [...c.ids], ts };
   if (c instanceof EditObjectsCommand) return { type: c.type, targets: c.targets.map((t) => t.to.id), ts };
   if (c instanceof GroupCommand) return { type: 'Group', group: c.group.id, targets: [...c.ids], ts };
-  if (c instanceof AddObjectsCommand) return { type: c.type, targets: c.ids, ts };
+  if (c instanceof AddObjectsCommand) {
+    // Design 05: PlaceFurniture(sofa-3s, layer=furniture, x, y) — x / y are the footprint's top-left.
+    const f = c.objects[0];
+    if (c.type === 'PlaceFurniture' && f?.kind === 'furniture') {
+      const b = boundsOf(footprintToWorld(f.transform, f.footprint));
+      return {
+        type: c.type,
+        item: f.catalogId,
+        target: f.id,
+        layer: f.layerId,
+        x: round2(b.minX),
+        y: round2(b.minY),
+        ts,
+      };
+    }
+    return { type: c.type, targets: c.ids, ts };
+  }
   if (c instanceof AddLayerCommand) return { type: c.type, layer: c.layer.id, ts };
   if (c instanceof DeleteLayerCommand) return { type: c.type, layer: c.layerId, ts };
   if (c instanceof SetAppearanceCommand) return { type: 'SetAppearance', target: c.id, from: c.from, to: c.to, ts };

@@ -23,6 +23,7 @@
   --color-on-ink: var(--pw-on-ink);
   --color-on-ink-accent: var(--pw-on-ink-accent);
   --color-success: var(--pw-success);
+  --color-success-soft: var(--pw-success-soft);
   --color-warning: var(--pw-warning);
 
   --shadow-float: var(--pw-shadow-float);
@@ -57,6 +58,8 @@
   --text-12--line-height: 16px;
   --text-13: 13px;
   --text-13--line-height: 17px;
+  --text-14: 14px;
+  --text-14--line-height: 18px;
   --text-16: 16px;
   --text-16--line-height: 21px;
   --tracking-label: 0.6px;

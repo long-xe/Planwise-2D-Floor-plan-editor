@@ -5,7 +5,7 @@ import { cn } from './cn';
 import { Segmented } from './controls';
 import { HistoryGlyph } from './historyIcons';
 import { Icon } from './Icon';
-import { LeftTabs } from './LeftPanel';
+import { LeftTabs } from './PanelTabs';
 import { useEditor } from './useStore';
 import keyboard from './icons/keyboard.svg';
 

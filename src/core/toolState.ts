@@ -1,9 +1,10 @@
 import type { WallAlign } from './document';
+import { FurnitureState } from './furnitureState';
 import type { EditorStore } from './store';
 import type { WallAngleOption, WallSnapKind } from './wallSnap';
 import type { Vec2 } from '../geometry/vec';
 
-export type ToolId = 'select' | 'wall';
+export type ToolId = 'select' | 'wall' | 'furniture';
 
 /** Wall tool settings (right panel, design 04). */
 export interface WallSettings {
@@ -46,16 +47,19 @@ export interface WallDraft {
   ahead: { to: Vec2; dist: number } | null;
 }
 
-/** Which tool is active and the Wall tool's settings and in-progress chain (design 04). */
+/** Which tool is active, the Wall tool's settings and chain (04), and the Furniture tool's state (05). */
 export class ToolState {
   active: ToolId = 'select';
   wall: WallSettings = { ...DEFAULT_WALL, angles: [...DEFAULT_WALL.angles] };
   /** Points placed in the current chain. */
   chain: Vec2[] = [];
   draft: WallDraft | null = null;
+  readonly furniture: FurnitureState;
   private draftListeners = new Set<() => void>();
 
-  constructor(private readonly store: EditorStore) {}
+  constructor(private readonly store: EditorStore) {
+    this.furniture = new FurnitureState(store);
+  }
 
   /** The draft changes on every pointer move: only its readouts listen, not whole panels. */
   subscribeDraft = (fn: () => void): (() => void) => {
@@ -70,6 +74,9 @@ export class ToolState {
     // Switching tools abandons an unfinished chain (placed segments stay).
     this.chain = [];
     this.setDraft(null);
+    this.furniture.setGhost(null);
+    // The Furniture tool works from the Library tab (design 05).
+    if (id === 'furniture') this.store.history.setTab('library');
     this.store.changed();
   }
 

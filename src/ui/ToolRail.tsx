@@ -14,6 +14,7 @@ import magnet from './icons/magnet.svg';
 import gear from './icons/gear.svg';
 import { cn } from './cn';
 import { useEditor } from './useStore';
+import type { ToolId } from '../core/toolState';
 
 interface RailItem {
   id: string;
@@ -23,7 +24,7 @@ interface RailItem {
   h: number;
 }
 
-// Select and Wall are wired (06, 04); the rest arrive with their screens.
+// Select, Wall and Furniture are wired (06, 04, 05); the rest arrive with their screens.
 const TOP: (RailItem | 'sep')[] = [
   { id: 'select', label: 'Select (V)', src: select, w: 10, h: 14 },
   { id: 'hand', label: 'Hand (H)', src: hand, w: 10, h: 15.75 },
@@ -31,7 +32,7 @@ const TOP: (RailItem | 'sep')[] = [
   { id: 'wall', label: 'Wall (W)', src: wall, w: 14, h: 14 },
   { id: 'door', label: 'Door', src: door, w: 16, h: 13 },
   { id: 'window', label: 'Window', src: windowIcon, w: 16, h: 6 },
-  { id: 'furniture', label: 'Furniture', src: sofa, w: 16, h: 10 },
+  { id: 'furniture', label: 'Furniture (F)', src: sofa, w: 16, h: 10 },
   'sep',
   { id: 'text', label: 'Text', src: text, w: 12, h: 13 },
   { id: 'dimension', label: 'Dimension', src: dim, w: 16, h: 8 },
@@ -45,7 +46,8 @@ const BOTTOM: RailItem[] = [
   { id: 'theme', label: 'Theme', src: gear, w: 18, h: 18 },
 ];
 
-const WIRED: readonly string[] = ['select', 'wall'];
+const WIRED: readonly ToolId[] = ['select', 'wall', 'furniture'];
+const isTool = (id: string): id is ToolId => (WIRED as readonly string[]).includes(id);
 
 export function ToolRail() {
   const store = useEditor();
@@ -57,8 +59,8 @@ export function ToolRail() {
       title={t.label}
       aria-label={t.label}
       aria-pressed={t.id === active}
-      aria-disabled={!WIRED.includes(t.id)}
-      onClick={() => (t.id === 'select' || t.id === 'wall') && store.tools.setActive(t.id)}
+      aria-disabled={!isTool(t.id)}
+      onClick={() => isTool(t.id) && store.tools.setActive(t.id)}
       className={cn(
         'flex items-center justify-center rounded-[4px] border',
         size,

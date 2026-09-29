@@ -45,6 +45,8 @@ export interface Furniture {
   room?: string;
   /** Electrical: switches and lights on the same circuit are wired together. */
   circuit?: string;
+  /** Library piece it was placed from (05): draws with that catalog symbol. */
+  catalogId?: string;
 }
 
 export type FixtureIcon = 'outlet' | 'switch' | 'light';

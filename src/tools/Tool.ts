@@ -23,6 +23,8 @@ export interface Tool {
   onPointerDown(e: ToolPointerEvent, ctx: ToolContext): void;
   onPointerMove(e: ToolPointerEvent, ctx: ToolContext): void;
   onPointerUp(e: ToolPointerEvent, ctx: ToolContext): void;
+  /** The pointer left the canvas (drop previews hide). */
+  onPointerLeave?(ctx: ToolContext): void;
   onKey?(e: KeyboardEvent, ctx: ToolContext): void;
   /** Roll back any open transaction (Esc, lost focus, tool switch). */
   cancel(ctx: ToolContext): void;

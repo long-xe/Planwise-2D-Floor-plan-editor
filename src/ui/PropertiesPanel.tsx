@@ -7,11 +7,12 @@ import { HitDetectionSection } from './HitDetectionSection';
 import { LayerPanel } from './LayerPanel';
 import { StructurePanel } from './StructurePanel';
 import { WallToolPanel } from './WallToolPanel';
+import { FurniturePanel } from './FurniturePanel';
 import { AlignSection, MultiSelectionHeader, SelectionBoundsSection } from './MultiSelectionPanel';
 import { IconButton, NumberField, Section } from './controls';
 import { Icon } from './Icon';
 import { ItemGlyph } from './itemIcons';
-import { Tabs } from './LeftPanel';
+import { Tabs } from './PanelTabs';
 import { SnappingSection } from './SnappingSection';
 import { useEditor } from './useStore';
 import bed from './icons/bed.svg';
@@ -38,6 +39,8 @@ export function PropertiesPanel() {
         <HistoryInspector />
       ) : !layer && store.tools.active === 'wall' ? (
         <WallToolPanel />
+      ) : !layer && store.tools.active === 'furniture' ? (
+        <FurniturePanel />
       ) : layer ? (
         <LayerPanel layer={layer} />
       ) : structural.length ? (

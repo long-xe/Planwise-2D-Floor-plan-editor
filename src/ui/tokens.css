@@ -32,6 +32,7 @@
   --pw-shadow-toast: 0 6px 18px rgba(27, 42, 65, 0.18); /* undo toast */
   --pw-shadow-hint: 0 2px 8px rgba(0, 0, 0, 0.06); /* tool hint bar */
   --pw-success: #6e9b7b; /* toggles on, saved, fps ok */
+  --pw-success-soft: rgba(110, 155, 123, 0.15); /* Library: "Dragging" badge */
   --pw-warning: #e0a526;
 
   /* Canvas */

@@ -20,66 +20,12 @@ import lock from './icons/lock.svg';
 import eyeOff from './icons/eye-off-badge.svg';
 import { ItemGlyph } from './itemIcons';
 import { HistoryPanel } from './HistoryPanel';
+import { LibraryPanel } from './LibraryPanel';
 import { LayersManager } from './LayersManager';
 import { cn } from './cn';
+import { LeftTabs } from './PanelTabs';
 
 const MAX_CHILDREN = 12;
-
-/**
- * Panel tabs. Static when `onSelect` is omitted (Properties / Document);
- * `disabled` tabs show but can't be opened yet (Library arrives with 05).
- */
-export function Tabs({
-  tabs,
-  active,
-  disabled = [],
-  onSelect,
-}: {
-  tabs: string[];
-  active: string;
-  disabled?: string[];
-  onSelect?(tab: string): void;
-}) {
-  return (
-    <div role="tablist" className="flex h-[41px] shrink-0 items-end gap-[22px] border-b border-line px-4">
-      {tabs.map((t) => {
-        const off = disabled.includes(t);
-        return (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={t === active}
-            aria-disabled={off}
-            title={off ? `${t} arrives with its own screen` : undefined}
-            onClick={() => !off && onSelect?.(t)}
-            className={cn(
-              'pb-[9px] text-12 font-medium text-muted',
-              onSelect && !off && 'cursor-pointer hover:text-ink',
-              off && 'cursor-not-allowed',
-              t === active && '-mb-px border-b-2 border-tool font-semibold text-ink',
-            )}
-          >
-            {t}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-/** The left panel's tab strip, wired to the History screen state. */
-export function LeftTabs() {
-  const store = useEditor();
-  return (
-    <Tabs
-      tabs={['Layers', 'Library', 'History']}
-      active={store.history.tab === 'history' ? 'History' : 'Layers'}
-      disabled={['Library']}
-      onSelect={(t) => store.history.setTab(t === 'History' ? 'history' : 'layers')}
-    />
-  );
-}
 
 export function LeftPanel() {
   const store = useEditor();
@@ -87,6 +33,7 @@ export function LeftPanel() {
   const [open, setOpen] = useState<Record<ToolId, Record<string, boolean>>>({
     select: { furniture: true },
     wall: { walls: true },
+    furniture: { furniture: true },
   });
   const tool = store.tools.active;
   const expanded = open[tool];
@@ -94,6 +41,7 @@ export function LeftPanel() {
   // Opening a layer switches to the wide Layers manager (08).
   if (store.activeLayerId) return <LayersManager />;
   if (store.history.tab === 'history') return <HistoryPanel />;
+  if (store.history.tab === 'library') return <LibraryPanel />;
 
   return (
     <aside className="flex min-h-0 w-left flex-col border-r border-line bg-surface">

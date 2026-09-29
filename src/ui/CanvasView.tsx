@@ -5,6 +5,8 @@ import type { ToolId } from '../core/toolState';
 import type { Tool, ToolContext, ToolPointerEvent } from '../tools/Tool';
 import { useEditorStoreRef } from './useStore';
 
+const TOOL_KEYS: Record<string, ToolId> = { v: 'select', w: 'wall', f: 'furniture' };
+
 /**
  * Hosts the canvas and forwards input to the active tool. The render loop
  * owns drawing; this component never re-renders because of document changes.
@@ -93,6 +95,13 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
         else store.undo();
         return;
       }
+      // ⌘K: search the furniture Library (05).
+      if (mod && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        store.tools.setActive('furniture');
+        store.tools.furniture.focusSearch();
+        return;
+      }
       if (mod && e.key.toLowerCase() === 'g') {
         e.preventDefault();
         store.group();
@@ -104,8 +113,9 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
         tool().onKey?.(e, ctx);
         return;
       }
-      if (!mod && !e.altKey && (e.key === 'v' || e.key === 'w')) {
-        store.tools.setActive(e.key === 'w' ? 'wall' : 'select');
+      const key = e.key.toLowerCase();
+      if (!mod && !e.altKey && key in TOOL_KEYS) {
+        store.tools.setActive(TOOL_KEYS[key]!);
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -129,11 +139,13 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
     };
     // Losing focus mid-drag must not leave a half-applied edit behind.
     const blur = () => tool().cancel(ctx);
+    const leave = () => tool().onPointerLeave?.(ctx);
 
     canvas.addEventListener('pointerdown', down);
     canvas.addEventListener('pointermove', move);
     canvas.addEventListener('pointerup', up);
     canvas.addEventListener('pointercancel', blur);
+    canvas.addEventListener('pointerleave', leave);
     canvas.addEventListener('wheel', wheel, { passive: false });
     window.addEventListener('keydown', keydown);
     window.addEventListener('keyup', keyup);
@@ -145,6 +157,7 @@ export function CanvasView({ tools }: { tools: Record<ToolId, Tool> }) {
       canvas.removeEventListener('pointermove', move);
       canvas.removeEventListener('pointerup', up);
       canvas.removeEventListener('pointercancel', blur);
+      canvas.removeEventListener('pointerleave', leave);
       canvas.removeEventListener('wheel', wheel);
       window.removeEventListener('keydown', keydown);
       window.removeEventListener('keyup', keyup);

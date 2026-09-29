@@ -6,6 +6,7 @@ import { createDemoDoc } from './library/demoScene';
 import { RULER_PX } from './render/rulers';
 import { SelectTool } from './tools/SelectTool';
 import { WallTool } from './tools/WallTool';
+import { FurnitureTool } from './tools/FurnitureTool';
 import { CanvasView } from './ui/CanvasView';
 import { HitDebugPanel } from './ui/HitDebugPanel';
 import { LayerBadges } from './ui/LayerBadges';
@@ -38,7 +39,7 @@ export function App() {
     s.lastHit = pickAt(s.hitIndex, { x: 2.4, y: 6.4 });
     return s;
   }, []);
-  const tools = useMemo(() => ({ select: new SelectTool(), wall: new WallTool() }), []);
+  const tools = useMemo(() => ({ select: new SelectTool(), wall: new WallTool(), furniture: new FurnitureTool() }), []);
 
   return (
     <StoreContext.Provider value={store}>

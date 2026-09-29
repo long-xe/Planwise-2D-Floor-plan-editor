@@ -1,4 +1,4 @@
-import { useEditor, useFrameStats, useWallDraft } from './useStore';
+import { useEditor, useFrameStats, useGhost, useWallDraft } from './useStore';
 import { cn } from './cn';
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -43,6 +43,24 @@ function WallStats() {
       <Stat label="Angle" value={d?.placing && d.angle !== null ? `${+d.angle.toFixed(1)}°` : '—'} />
       <Dotted tone="success" label="Snap" value={d?.kind ?? '—'} />
       <Stat label="Walls" value={String(walls)} />
+      <Dotted tone="success" label="FPS" value={String(stats.fps)} />
+    </>
+  );
+}
+
+/** Furniture tool (05): the ghost counts as one extra object while it's on the canvas. */
+function FurnitureStats() {
+  const store = useEditor();
+  const stats = useFrameStats();
+  const ghost = useGhost();
+  const objects = store.doc.objects.length;
+  return (
+    <>
+      <Stat label="X" value={`${stats.cursor.x.toFixed(2)} m`} />
+      <Stat label="Y" value={`${stats.cursor.y.toFixed(2)} m`} />
+      <Stat label="Zoom" value={`${Math.round(store.viewport.zoom * 100)}%`} />
+      <Stat label="Objects" value={ghost ? `${objects} + 1 ghost` : String(objects)} />
+      <Dotted tone="success" label="Snap" value={store.snap.grid ? 'grid' : 'off'} />
       <Dotted tone="success" label="FPS" value={String(stats.fps)} />
     </>
   );
@@ -103,6 +121,8 @@ export function StatusBar() {
         <HistoryStats />
       ) : store.tools.active === 'wall' ? (
         <WallStats />
+      ) : store.tools.active === 'furniture' ? (
+        <FurnitureStats />
       ) : (
         <>
           <Stat label="X" value={`${stats.cursor.x.toFixed(2)} m`} />

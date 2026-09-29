@@ -24,7 +24,7 @@ import { ReorderLayerCommand, ordersOf } from '../core/layerCommands';
 import { LayerCardBody, LayerChildren } from './LayerCard';
 import { insertionCollision, layerAnnouncements } from './layerDnd';
 import { RenderOrder } from './RenderOrder';
-import { LeftTabs } from './LeftPanel';
+import { LeftTabs } from './PanelTabs';
 import { useEditor } from './useStore';
 import { cn } from './cn';
 

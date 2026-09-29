@@ -9,6 +9,7 @@ import { drawBroadphase, drawHitRegions } from './hitDebug';
 import { drawMarquee, drawMultiSelection } from './multiSelection';
 import { drawRedoPreview } from './historyPreview';
 import { drawWallOverlay } from './wallOverlay';
+import { drawGhostOverlay } from './ghostOverlay';
 import { drawStructureSelection } from './structureOverlay';
 import { pill } from './pill';
 import type { CanvasTheme } from './theme';
@@ -36,6 +37,7 @@ export function drawOverlay(g: CanvasRenderingContext2D, store: EditorStore, vie
   if (selecting) drawStructureSelection(g, store, theme);
   drawRedoPreview(g, store, theme);
   drawWallOverlay(g, store, theme);
+  drawGhostOverlay(g, store, theme);
   const mq = store.feedback.marquee;
   if (mq) drawMarquee(g, store, mq.rect, theme);
   // Hover debugging only while idle: during a drag the report is stale.

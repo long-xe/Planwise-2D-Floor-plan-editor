@@ -4,7 +4,7 @@ import { entryView } from './historyView';
 import { type HistoryOptions, clearProject, loadOptions, loadProject, saveOptions, saveProject } from './persistence';
 import type { EditorStore } from './store';
 
-export type LeftTab = 'layers' | 'history';
+export type LeftTab = 'layers' | 'library' | 'history';
 export type HistoryFilter = 'all' | 'geometry' | 'layers';
 
 /** Canvas toast after an undo or redo (design 09: "↶ Undo • Rotate Bed 30°  |  Redo ⌘⇧Z"). */
