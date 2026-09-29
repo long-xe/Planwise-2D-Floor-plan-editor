@@ -5,7 +5,7 @@ import type { ToolId } from '../core/toolState';
 import type { Tool, ToolContext, ToolPointerEvent } from '../tools/Tool';
 import { useEditorStoreRef } from './useStore';
 
-const TOOL_KEYS: Record<string, ToolId> = { v: 'select', h: 'hand', w: 'wall', f: 'furniture' };
+const TOOL_KEYS: Record<string, ToolId> = { v: 'select', h: 'hand', w: 'wall', f: 'furniture', m: 'measure' };
 
 /**
  * Hosts the canvas and forwards input to the active tool. The render loop

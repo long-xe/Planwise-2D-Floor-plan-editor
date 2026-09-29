@@ -8,6 +8,7 @@ import { MoreToggle } from './MoreToggle';
 import { Icon } from './Icon';
 import { useEditor } from './useStore';
 import { DrawingRow, WallGraphCard } from './WallGraphCard';
+import { AreaScheduleCard, MeasureRow } from './MeasureCards';
 import plusSmall from './icons/plus-small.svg';
 import drag from './icons/drag.svg';
 import chevRight from './icons/chev-right.svg';
@@ -36,6 +37,8 @@ export function LeftPanel() {
     hand: { furniture: true },
     wall: { walls: true },
     furniture: { furniture: true },
+    // Measuring opens the Annotations layer, where a kept dimension lands (design 10).
+    measure: { annotations: true },
   });
   const tool = store.tools.active;
   const expanded = open[tool];
@@ -74,7 +77,15 @@ export function LeftPanel() {
           />
         ))}
       </div>
-      {tool === 'wall' ? <WallGraphCard /> : store.units.length > 1 ? <ShortcutsCard /> : <HitTestCard />}
+      {tool === 'wall' ? (
+        <WallGraphCard />
+      ) : tool === 'measure' ? (
+        <AreaScheduleCard />
+      ) : store.units.length > 1 ? (
+        <ShortcutsCard />
+      ) : (
+        <HitTestCard />
+      )}
     </aside>
   );
 }
@@ -85,8 +96,10 @@ function LayerRow({ layer, expanded, onToggle }: { layer: Layer; expanded: boole
   const rows = listRows(store.doc, layer.id);
   const [showAll, setShowAll] = useState(false);
   const shown = showAll ? rows : rows.slice(0, MAX_CHILDREN);
-  // The Wall tool draws into this layer (design 04: highlighted row, ACTIVE tag).
-  const target = store.tools.active === 'wall' && layer.id === 'walls';
+  // The Wall tool draws into this layer (design 04: highlighted row, ACTIVE tag); a kept measure lands in Annotations (10).
+  const drawing = store.tools.active === 'wall' && layer.id === 'walls';
+  const measuring = store.tools.active === 'measure' && layer.id === 'annotations';
+  const target = drawing || measuring;
 
   return (
     <>
@@ -119,7 +132,7 @@ function LayerRow({ layer, expanded, onToggle }: { layer: Layer; expanded: boole
           )}
         >
           {layer.name}
-          {target && (
+          {drawing && (
             <span className="ml-[11px] font-mono text-8 font-bold tracking-[0.48px] text-tool uppercase">Active</span>
           )}
         </button>
@@ -155,7 +168,8 @@ function LayerRow({ layer, expanded, onToggle }: { layer: Layer; expanded: boole
               className="h-[30px] pl-[66px]"
             />
           )}
-          {target && <DrawingRow />}
+          {drawing && <DrawingRow />}
+          {measuring && <MeasureRow />}
         </div>
       )}
     </>
@@ -168,7 +182,7 @@ function ObjectRow({ row, layer }: { row: ListRow; layer: Layer }) {
   // Model rule: locked or hidden layers list their pieces but don't select them.
   const blocked = layer.locked || !layer.visible;
   const onClick = (shift: boolean) => {
-    if (blocked) return;
+    if (blocked || row.inert) return;
     if (!shift) return store.select(row.ids);
     store.select(selected ? store.selection.filter((id) => !row.ids.includes(id)) : [...store.selection, ...row.ids]);
   };
@@ -181,7 +195,7 @@ function ObjectRow({ row, layer }: { row: ListRow; layer: Layer }) {
       className={cn(
         'relative mx-1 flex h-[30px] w-[252px] items-center rounded-[3px] pr-[19px] pl-[41.6px] text-left',
         row.indent && 'pl-[57.6px]',
-        blocked ? 'cursor-not-allowed' : selected ? 'bg-accent-tint' : 'hover:bg-sunken',
+        blocked ? 'cursor-not-allowed' : row.inert ? 'cursor-default' : selected ? 'bg-accent-tint' : 'hover:bg-sunken',
       )}
     >
       {selected && <span className="absolute inset-y-0 left-0 w-[2px] bg-accent" />}
@@ -201,7 +215,7 @@ function ObjectRow({ row, layer }: { row: ListRow; layer: Layer }) {
           <span className="font-mono text-10 text-muted">{row.meta}</span>
           {layer.locked && <Icon src={lock} w={8.5} h={11.4} className="ml-2" />}
         </>
-      ) : (
+      ) : row.inert ? null : (
         <>
           <Icon src={eyeMuted} w={13.6} h={6.375} />
           <Icon src={layer.locked ? lock : unlockMuted} w={8.5} h={11.4} className="ml-[15px]" />

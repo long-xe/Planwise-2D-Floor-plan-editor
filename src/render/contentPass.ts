@@ -96,6 +96,7 @@ export class ContentPainter {
       mitre,
       only,
       batch: opts.batching ? this.batcher : null,
+      annot: store.tools.measure.style,
     });
     const cached = new Set<string>();
     for (const layer of doc.layers.toSorted((a, b) => a.order - b.order)) {

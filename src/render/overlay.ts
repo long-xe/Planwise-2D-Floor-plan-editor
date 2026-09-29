@@ -10,6 +10,7 @@ import { drawMarquee, drawMultiSelection } from './multiSelection';
 import { drawRedoPreview } from './historyPreview';
 import { drawWallOverlay } from './wallOverlay';
 import { drawGhostOverlay } from './ghostOverlay';
+import { drawMeasureOverlay } from './measureOverlay';
 import { drawStructureSelection } from './structureOverlay';
 import { pill } from './pill';
 import type { CanvasTheme } from './theme';
@@ -39,6 +40,7 @@ export function drawOverlay(g: CanvasRenderingContext2D, store: EditorStore, vie
   drawRedoPreview(g, store, theme);
   drawWallOverlay(g, store, theme);
   drawGhostOverlay(g, store, theme);
+  drawMeasureOverlay(g, store, theme);
   const mq = store.feedback.marquee;
   if (mq) drawMarquee(g, store, mq.rect, theme);
   // Hover debugging only while idle: during a drag the report is stale.
@@ -206,8 +208,10 @@ export function drawSheetMarks(
   w: number,
   h: number,
   theme: CanvasTheme,
+  /** A title block takes the bottom-right corner: arrow top-left, scale bottom-left (design 10). */
+  titled = false,
 ): void {
-  const cx = w - 56 - 20;
+  const cx = titled ? 74 : w - 56 - 20;
   const cy = 80;
   g.beginPath();
   g.arc(cx, cy, 19.5, 0, Math.PI * 2);
@@ -237,8 +241,8 @@ export function drawSheetMarks(
 
   // 4 × 0.5 m segments; the ratio tracks zoom so the label stays truthful.
   const seg = 0.5 * scaleOf(v);
-  const x0 = w - 20 - 4 * seg - 44;
-  const y0 = h - 70;
+  const x0 = titled ? 60 : w - 20 - 4 * seg - 44;
+  const y0 = titled ? h - 40 : h - 70;
   g.font = `500 9px ${theme.fontMono}`;
   g.fillStyle = theme.inkMuted;
   g.textBaseline = 'top';

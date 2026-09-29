@@ -1,12 +1,13 @@
 import type { Doc, Furniture, ItemIcon, SceneObject } from './document';
 import { findGroup } from './document';
+import { type Annotation, measureCount } from './annotations';
 import { layerObjects } from './layerStats';
 import { displayName, kindName, openingsOf, structureSize } from './structure';
 
 const sizeMeta = (x: SceneObject) => `${structureSize(x)!.toFixed(2)} m`;
 
-/** Row icon key: catalog kinds plus the Walls layer's structural pieces. */
-export type RowGlyph = ItemIcon | 'wall' | 'door' | 'window';
+/** Row icon key: catalog kinds, the Walls layer's structural pieces, annotation types and the live measure. */
+export type RowGlyph = ItemIcon | 'wall' | 'door' | 'window' | Annotation['type'] | 'measure';
 
 function glyphOf(o: SceneObject): RowGlyph {
   if (o.kind === 'furniture') return o.icon;
@@ -24,6 +25,8 @@ export interface ListRow {
   indent: boolean;
   /** Right-hand detail: a wall's length or an opening's width (design 04). */
   meta?: string;
+  /** Listed only, not selectable here (annotations, until they can be edited on the canvas). */
+  inert?: boolean;
 }
 
 /**
@@ -40,6 +43,20 @@ export function listRows(doc: Doc, layerId: string): ListRow[] {
     for (const o of openingsOf(doc, w.id)) {
       rows.push({ key: o.id, label: displayName(o), glyph: o.type, ids: [o.id], indent: true, meta: sizeMeta(o) });
     }
+  }
+  // Annotations in plan order, with how many measurements each holds (design 10: "Dimension chain · top 3").
+  for (const a of objects) {
+    if (a.kind !== 'annotation') continue;
+    const n = measureCount(a);
+    rows.push({
+      key: a.id,
+      label: a.name,
+      glyph: a.type,
+      ids: [a.id],
+      indent: false,
+      inert: true,
+      ...(n ? { meta: String(n) } : {}),
+    });
   }
   const seen = new Set<string>();
   for (const f of objects.filter((o): o is Furniture => o.kind === 'furniture').toReversed()) {

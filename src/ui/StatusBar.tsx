@@ -1,4 +1,5 @@
-import { useEditor, useFrameStats, useGhost, useWallDraft } from './useStore';
+import { formatLength } from '../core/annotations';
+import { useEditor, useFrameStats, useGhost, useMeasureDraft, useWallDraft } from './useStore';
 import { cn } from './cn';
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -83,6 +84,27 @@ function PerfStats() {
   );
 }
 
+/** Measure tool (10): where the pointer is, the live distance, what the end snapped to. */
+function MeasureStats() {
+  const store = useEditor();
+  const stats = useFrameStats();
+  const d = useMeasureDraft();
+  const f = store.tools.measure.style.format;
+  const len = d.a && d.b ? Math.hypot(d.b.point.x - d.a.point.x, d.b.point.y - d.a.point.y) : null;
+  const snap = (d.b ?? d.hover)?.kind ?? 'free';
+  const annotations = store.doc.objects.filter((o) => o.kind === 'annotation').length;
+  return (
+    <>
+      <Stat label="X" value={`${stats.cursor.x.toFixed(2)} m`} />
+      <Stat label="Y" value={`${stats.cursor.y.toFixed(2)} m`} />
+      <Dotted tone="tool" label="Distance" value={len === null ? '—' : formatLength(len, f)} />
+      <Dotted tone="success" label="Snap" value={snap} />
+      <Stat label="Annotations" value={String(annotations)} />
+      <Dotted tone="success" label="FPS" value={String(stats.fps)} />
+    </>
+  );
+}
+
 /** History tab (09): where HEAD is, how deep undo / redo go, and the last step taken. */
 function HistoryStats() {
   const store = useEditor();
@@ -142,6 +164,8 @@ export function StatusBar() {
         <WallStats />
       ) : store.tools.active === 'furniture' ? (
         <FurnitureStats />
+      ) : store.tools.active === 'measure' ? (
+        <MeasureStats />
       ) : (
         <>
           <Stat label="X" value={`${stats.cursor.x.toFixed(2)} m`} />

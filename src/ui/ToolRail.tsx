@@ -34,7 +34,7 @@ interface ToggleItem extends RailItem {
   src: string;
 }
 
-// Select, Hand, Wall and Furniture are wired (06, 04, 05); the rest arrive with their screens.
+// Select, Hand, Wall, Furniture and Measure are wired (06, 04, 05, 10); the rest arrive with their screens.
 const TOP: (ModeItem | 'sep')[] = [
   { id: 'select', label: 'Select (V)', Svg: Select, w: 10, h: 14 },
   { id: 'hand', label: 'Hand (H)', Svg: Hand, w: 10, h: 15.75 },
@@ -46,7 +46,7 @@ const TOP: (ModeItem | 'sep')[] = [
   'sep',
   { id: 'text', label: 'Text', Svg: Text, w: 12, h: 13 },
   { id: 'dimension', label: 'Dimension', Svg: Dim, w: 16, h: 8 },
-  { id: 'measure', label: 'Measure', Svg: Ruler, w: 16, h: 16 },
+  { id: 'measure', label: 'Measure (M)', Svg: Ruler, w: 16, h: 16 },
   { id: 'note', label: 'Note', Svg: Note, w: 12, h: 14 },
 ];
 
@@ -55,7 +55,7 @@ const BOTTOM: ToggleItem[] = [
   { id: 'snap', label: 'Snap', src: magnet, w: 12, h: 14 },
 ];
 
-const WIRED: readonly ToolId[] = ['select', 'hand', 'wall', 'furniture'];
+const WIRED: readonly ToolId[] = ['select', 'hand', 'wall', 'furniture', 'measure'];
 const isTool = (id: string): id is ToolId => (WIRED as readonly string[]).includes(id);
 
 export function ToolRail() {

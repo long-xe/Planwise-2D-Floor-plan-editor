@@ -31,6 +31,8 @@ const twMerge = extendTailwindMerge({
         'success',
         'success-soft',
         'warning',
+        'note',
+        'note-ink',
       ],
       text: ['8', '9', '10', '11', '12', '13', '14', '16'],
       shadow: ['float', 'drag', 'toast', 'hint'],

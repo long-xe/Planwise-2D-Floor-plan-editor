@@ -8,6 +8,7 @@ import { LayerPanel } from './LayerPanel';
 import { StructurePanel } from './StructurePanel';
 import { WallToolPanel } from './WallToolPanel';
 import { FurniturePanel } from './FurniturePanel';
+import { MeasurePanel } from './MeasurePanel';
 import { PerfPanel } from './PerfPanel';
 import { AlignSection, MultiSelectionHeader, SelectionBoundsSection } from './MultiSelectionPanel';
 import { IconButton, NumberField, Section } from './controls';
@@ -52,6 +53,8 @@ export function PropertiesPanel() {
         <WallToolPanel />
       ) : !layer && store.tools.active === 'furniture' ? (
         <FurniturePanel />
+      ) : !layer && store.tools.active === 'measure' ? (
+        <MeasurePanel />
       ) : layer ? (
         <LayerPanel layer={layer} />
       ) : structural.length ? (

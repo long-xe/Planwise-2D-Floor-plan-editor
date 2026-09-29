@@ -14,6 +14,10 @@ export interface CanvasTheme {
   gridMinor: string;
   glass: string;
   success: string;
+  warning: string;
+  note: string;
+  noteFold: string;
+  noteInk: string;
   gridMajor: string;
   fontMono: string;
   fontSans: string;
@@ -32,6 +36,10 @@ const VARS: Record<keyof CanvasTheme, string> = {
   gridMinor: '--pw-grid-minor',
   glass: '--pw-glass',
   success: '--pw-success',
+  warning: '--pw-warning',
+  note: '--pw-note',
+  noteFold: '--pw-note-fold',
+  noteInk: '--pw-note-ink',
   gridMajor: '--pw-grid-major',
   fontMono: '--pw-font-mono',
   fontSans: '--pw-font-sans',

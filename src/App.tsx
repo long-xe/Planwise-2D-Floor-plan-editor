@@ -9,6 +9,7 @@ import { SelectTool } from './tools/SelectTool';
 import { WallTool } from './tools/WallTool';
 import { FurnitureTool } from './tools/FurnitureTool';
 import { HandTool } from './tools/HandTool';
+import { MeasureTool } from './tools/MeasureTool';
 import { CanvasView } from './ui/CanvasView';
 import { HitDebugPanel } from './ui/HitDebugPanel';
 import { LayerBadges } from './ui/LayerBadges';
@@ -57,7 +58,13 @@ export function App() {
     if (import.meta.env.DEV) Object.assign(window, { planwise: store });
   }, [store]);
   const tools = useMemo(
-    () => ({ select: new SelectTool(), hand: new HandTool(), wall: new WallTool(), furniture: new FurnitureTool() }),
+    () => ({
+      select: new SelectTool(),
+      hand: new HandTool(),
+      wall: new WallTool(),
+      furniture: new FurnitureTool(),
+      measure: new MeasureTool(),
+    }),
     [],
   );
 

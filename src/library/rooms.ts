@@ -2,11 +2,11 @@ import { pointInRect } from '../geometry/hitTest';
 import type { Rect, Vec2 } from '../geometry/vec';
 
 /**
- * Room extents of the demo plan (inside wall faces, metres). Only used to
- * tag objects for the Layers manager until rooms become real annotations
- * (screen 10).
+ * Room extents of the demo plan (inside wall faces, metres): tags objects
+ * for the Layers manager and gives the room-area annotations (10) their net
+ * outlines.
  */
-const ROOMS: { name: string; rect: Rect }[] = [
+export const ROOMS: { name: string; rect: Rect }[] = [
   { name: 'living', rect: { minX: 0.24, minY: 0.24, maxX: 7.92, maxY: 4.52 } },
   { name: 'kitchen', rect: { minX: 8.08, minY: 0.24, maxX: 11.76, maxY: 3.72 } },
   { name: 'study', rect: { minX: 8.08, minY: 3.88, maxX: 11.76, maxY: 8.16 } },

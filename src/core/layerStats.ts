@@ -1,3 +1,4 @@
+import type { Annotation } from './annotations';
 import type { Doc, ItemIcon, Layer } from './document';
 import { DEFAULT_LAYER_IDS } from './document';
 import { aabbOf } from '../geometry/transform';
@@ -21,8 +22,8 @@ export function layerStatus(layer: Layer): 'hidden' | 'static cache' | 'custom' 
 export function contentBounds(doc: Doc, layerId: string): Rect | null {
   let box: Rect | null = null;
   for (const o of layerObjects(doc, layerId)) {
-    // Openings sit inside their wall, so they never widen the bounds.
-    if (o.kind === 'opening') continue;
+    // Openings sit inside their wall, so they never widen the bounds; annotations are drawn around the plan.
+    if (o.kind === 'opening' || o.kind === 'annotation') continue;
     let r: Rect;
     if (o.kind === 'wall') {
       const h = o.thickness / 2;
@@ -47,6 +48,14 @@ const CONTENT_LABEL: Record<ItemIcon, string> = {
   plant: 'Plants',
 };
 
+const ANNOTATION_LABEL: Record<Annotation['type'], string> = {
+  dimension: 'Dimension chains',
+  area: 'Room area labels',
+  callout: 'Callouts',
+  note: 'Notes',
+  revision: 'Revision clouds',
+};
+
 /** Right panel "Contents": counts by kind, plus circuits for electrical layers. */
 export function layerContents(doc: Doc, layerId: string): { label: string; count: number }[] {
   const counts = new Map<string, number>();
@@ -64,6 +73,11 @@ export function layerContents(doc: Doc, layerId: string): { label: string; count
       else windows++;
       continue;
     }
+    if (o.kind === 'annotation') {
+      const label = ANNOTATION_LABEL[o.type];
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+      continue;
+    }
     const label = CONTENT_LABEL[o.icon];
     counts.set(label, (counts.get(label) ?? 0) + 1);
     if (o.circuit) circuits.add(o.circuit);
@@ -74,6 +88,14 @@ export function layerContents(doc: Doc, layerId: string): { label: string; count
   if (windows) rows.push({ label: 'Windows', count: windows });
   if (circuits.size) rows.push({ label: 'Circuits', count: circuits.size });
   return rows;
+}
+
+/** Every number in an annotation, and its strings' lengths: a text edit or a moved point changes it. */
+function mixAnnotation(value: unknown, mix: (n: number) => void): void {
+  if (typeof value === 'number') mix(value);
+  else if (typeof value === 'string') mix(value.length);
+  else if (Array.isArray(value)) for (const v of value) mixAnnotation(v, mix);
+  else if (value && typeof value === 'object') for (const v of Object.values(value)) mixAnnotation(v, mix);
 }
 
 /**
@@ -99,6 +121,8 @@ export function layerSignature(doc: Doc, layer: Layer): number {
       mix(o.offset);
       mix(o.width);
       mix(o.type === 'door' ? (o.swing ?? 1) * (o.hinge === 'end' ? 2 : 1) : 0);
+    } else if (o.kind === 'annotation') {
+      mixAnnotation(o, mix);
     } else {
       const t = o.transform;
       mix(t.x);

@@ -1,10 +1,11 @@
 import type { WallAlign } from './document';
 import { FurnitureState } from './furnitureState';
+import { MeasureState } from './measureState';
 import type { EditorStore } from './store';
 import type { WallAngleOption, WallSnapKind } from './wallSnap';
 import type { Vec2 } from '../geometry/vec';
 
-export type ToolId = 'select' | 'hand' | 'wall' | 'furniture';
+export type ToolId = 'select' | 'hand' | 'wall' | 'furniture' | 'measure';
 
 /** Wall tool settings (right panel, design 04). */
 export interface WallSettings {
@@ -55,10 +56,13 @@ export class ToolState {
   chain: Vec2[] = [];
   draft: WallDraft | null = null;
   readonly furniture: FurnitureState;
+  /** Measure tool and annotation settings (10). */
+  readonly measure: MeasureState;
   private draftListeners = new Set<() => void>();
 
   constructor(private readonly store: EditorStore) {
     this.furniture = new FurnitureState(store);
+    this.measure = new MeasureState(store);
   }
 
   /** The draft changes on every pointer move: only its readouts listen, not whole panels. */
@@ -75,6 +79,8 @@ export class ToolState {
     this.chain = [];
     this.setDraft(null);
     this.furniture.setGhost(null);
+    if (this.measure.draft.a || this.measure.draft.hover)
+      this.measure.setDraft({ a: null, b: null, fixed: false, hover: null });
     // The Furniture tool works from the Library tab (design 05).
     if (id === 'furniture') this.store.history.setTab('library');
     this.store.changed();

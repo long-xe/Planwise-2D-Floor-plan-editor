@@ -25,6 +25,8 @@
   --color-success: var(--pw-success);
   --color-success-soft: var(--pw-success-soft);
   --color-warning: var(--pw-warning);
+  --color-note: var(--pw-note);
+  --color-note-ink: var(--pw-note-ink);
 
   --shadow-float: var(--pw-shadow-float);
   --shadow-drag: var(--pw-shadow-drag);

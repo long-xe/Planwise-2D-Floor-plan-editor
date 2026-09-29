@@ -1,3 +1,4 @@
+import type { Annotation } from './annotations';
 import type { Doc, Opening, SceneObject, Wall } from './document';
 import { findObject } from './document';
 import { openingShape } from '../geometry/openings';
@@ -21,15 +22,25 @@ export function openingsOf(doc: Doc, wallId: string): Opening[] {
   return doc.objects.filter((o): o is Opening => o.kind === 'opening' && o.wallId === wallId);
 }
 
+const ANNOTATION_KIND: Record<Annotation['type'], string> = {
+  dimension: 'Dimension',
+  area: 'Room areas',
+  callout: 'Callout',
+  note: 'Note',
+  revision: 'Revision cloud',
+};
+
 /** Short kind name, the same for every piece of that kind ("Door", "Exterior wall"). */
 export function kindName(o: SceneObject): string {
   if (o.kind === 'furniture') return o.name;
+  if (o.kind === 'annotation') return ANNOTATION_KIND[o.type];
   if (o.kind === 'wall') return o.thickness >= EXTERIOR_MIN_M ? 'Exterior wall' : 'Interior wall';
   return o.type === 'door' ? 'Door' : 'Window';
 }
 
 /** A piece's own name: a wall's room-based name ("Kitchen / Study") when it has one. */
 export function displayName(o: SceneObject): string {
+  if (o.kind === 'annotation') return o.name;
   return o.kind === 'wall' && o.name ? o.name : kindName(o);
 }
 
@@ -54,6 +65,8 @@ export function wallQuad(w: Wall): Vec2[] {
 export function objectOutline(doc: Doc, o: SceneObject): Vec2[] | null {
   if (o.kind === 'furniture') return footprintToWorld(o.transform, o.footprint);
   if (o.kind === 'wall') return wallQuad(o);
+  // Annotations aren't picked on the canvas yet; they list and undo like anything else.
+  if (o.kind === 'annotation') return null;
   const w = hostWall(doc, o);
   return w ? openingShape(w, o).cut : null;
 }

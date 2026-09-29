@@ -10,6 +10,8 @@ import { DirtyTracker } from './dirtyRects';
 import { drawOverlay, drawSheetMarks } from './overlay';
 import { CULL_MARGIN_PX, drawPerfOverlay } from './perfOverlay';
 import { drawRulers } from './rulers';
+import { drawTitleBlock } from './titleBlock';
+import { findLayer } from '../core/document';
 import { type CanvasTheme, readTheme } from './theme';
 
 const STATS_INTERVAL_MS = 250;
@@ -108,7 +110,8 @@ export class RenderLoop {
     const v = store.viewport;
     const layers = store.doc.layers.map((l) => `${l.id}:${l.order}:${+l.visible}:${+l.locked}:${l.opacity}`).join();
     const o = store.perf.options;
-    return `${v.panX},${v.panY},${v.zoom},${this.width},${this.height},${this.dpr},${store.tools.wall.autoJoin},${layers},${store.activeLayerId},${o.staticCache}${o.culling}${o.batching}`;
+    const m = store.tools.measure.settings;
+    return `${v.panX},${v.panY},${v.zoom},${this.width},${this.height},${this.dpr},${store.tools.wall.autoJoin},${layers},${store.activeLayerId},${o.staticCache}${o.culling}${o.batching},${m.units}${m.precision}${m.terminator}${m.showAreas}`;
   }
 
   private rectOf = (t: Transform): ScreenRect => {
@@ -185,7 +188,12 @@ export class RenderLoop {
     };
     base(() => drawOverlay(og, store, inView, theme));
     // With the HUD up its cards and the cull-bounds label take those corners (design 11).
-    if (!store.perf.hud) base(() => drawSheetMarks(og, v, w, h, theme));
+    if (!store.perf.hud) {
+      // The title block shows with the Annotations layer (design 10), and moves the other marks aside.
+      const sheet = store.doc.sheet && findLayer(store.doc, 'annotations')?.visible ? store.doc.sheet : null;
+      base(() => drawSheetMarks(og, v, w, h, theme, !!sheet));
+      if (sheet) base(() => drawTitleBlock(og, w, h, theme, store.doc.name, sheet));
+    }
     if (store.perf.hud) {
       const regions = opts.showDirty && opts.dirtyRects ? this.dirty.regions : null;
       base(() => drawPerfOverlay(og, theme, w, h, regions, opts.culling));

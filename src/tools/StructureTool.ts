@@ -27,7 +27,7 @@ export interface StructureHandle {
 function editedPiece(store: EditorStore): Wall | Opening | null {
   if (store.selection.length !== 1) return null;
   const o = findObject(store.doc, store.selection[0]!);
-  if (!o || o.kind === 'furniture' || !isEditable(store.doc, o)) return null;
+  if (!o || o.kind === 'furniture' || o.kind === 'annotation' || !isEditable(store.doc, o)) return null;
   return o;
 }
 

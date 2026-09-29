@@ -2,6 +2,7 @@ import type { Doc, Furniture, Layer, Opening, Wall } from '../core/document';
 import { RECT_FOOTPRINT, ellipseFootprint } from '../core/document';
 import type { Vec2 } from '../geometry/vec';
 import { catalogItem } from './catalog';
+import { DEMO_SHEET, createDemoAnnotations } from './demoAnnotations';
 import { createElectrical } from './electrical';
 import { roomAt } from './rooms';
 
@@ -191,6 +192,7 @@ export function createDemoDoc(): Doc {
 
   return {
     name: 'Harbor St. Residence — Unit 4B',
+    sheet: { ...DEMO_SHEET },
     // Top of the Layers panel first; `order` is paint order (0 paints first).
     layers: [
       layer('annotations', 'Annotations', '#E0A526', 4),
@@ -201,6 +203,12 @@ export function createDemoDoc(): Doc {
       layer('grid', 'Grid & guides', '#C9D5E6', 0),
     ],
     groups: [{ id: 'g_0001', name: 'Dining set · 6' }],
-    objects: [...walls, ...openings, ...furniture.toReversed(), ...createElectrical().map(tagRoom)],
+    objects: [
+      ...walls,
+      ...openings,
+      ...furniture.toReversed(),
+      ...createElectrical().map(tagRoom),
+      ...createDemoAnnotations(),
+    ],
   };
 }

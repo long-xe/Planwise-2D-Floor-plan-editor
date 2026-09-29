@@ -6,7 +6,9 @@ import { type WallGraph, buildWallGraph, wallPolygon } from '../geometry/walls';
 import { type Viewport, scaleOf } from '../core/viewport';
 import type { Rect, Vec2 } from '../geometry/vec';
 import type { CanvasTheme } from './theme';
+import type { AnnotationStyle } from '../core/annotations';
 import type { SymbolBatcher } from './batchDraw';
+import { drawAnnotation } from './drawAnnotations';
 import { drawCircuits, drawFixture, drawFurniture } from './drawFurniture';
 import { catalogItem } from '../library/catalog';
 
@@ -54,6 +56,8 @@ export interface LayerPass {
   only: ReadonlySet<string> | null;
   /** "Batch same-style paths" (11): catalog pieces queue here and draw per style. */
   batch: SymbolBatcher | null;
+  /** Units, precision and dimension style for annotations (10). */
+  annot: AnnotationStyle;
 }
 
 /**
@@ -81,6 +85,10 @@ export function drawLayer(
       calls++;
     } else if (o.kind === 'opening') {
       // Drawn after every wall (drawOpenings) so no wall paints over a cut.
+      drawn++;
+    } else if (o.kind === 'annotation') {
+      // Few, and mostly outside the plan's bounds (chains, notes): never culled.
+      calls += drawAnnotation(g, o, v, theme, p.annot);
       drawn++;
     } else if ((!p.only || p.only.has(o.id)) && visible(o, view)) {
       const item = p.batch && !isFixture(o.icon) ? catalogItem(o.catalogId) : undefined;

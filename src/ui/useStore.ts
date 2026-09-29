@@ -1,6 +1,7 @@
 import { createContext, useContext, useSyncExternalStore } from 'react';
 import type { EditorStore, FrameStats } from '../core/store';
 import type { Ghost } from '../core/furnitureState';
+import type { MeasureDraft } from '../core/measureState';
 import type { WallDraft } from '../core/toolState';
 
 export const StoreContext = createContext<EditorStore | null>(null);
@@ -39,4 +40,11 @@ export function useGhost(): Ghost | null {
   const store = useContext(StoreContext);
   if (!store) throw new Error('StoreContext missing');
   return useSyncExternalStore(store.tools.furniture.subscribeGhost, store.tools.furniture.getGhost);
+}
+
+/** The Measure tool's live measurement (10), on its own channel. */
+export function useMeasureDraft(): MeasureDraft {
+  const store = useContext(StoreContext);
+  if (!store) throw new Error('StoreContext missing');
+  return useSyncExternalStore(store.tools.measure.subscribeDraft, store.tools.measure.getDraft);
 }

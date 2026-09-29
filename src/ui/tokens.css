@@ -33,7 +33,10 @@
   --pw-shadow-hint: 0 2px 8px rgba(0, 0, 0, 0.06); /* tool hint bar */
   --pw-success: #6e9b7b; /* toggles on, saved, fps ok */
   --pw-success-soft: rgba(110, 155, 123, 0.15); /* Library: "Dragging" badge */
-  --pw-warning: #e0a526;
+  --pw-warning: #e0a526; /* annotations layer, revision clouds, notes */
+  --pw-note: #fbf1d6; /* sticky note paper (design 10) */
+  --pw-note-fold: #f2dda4;
+  --pw-note-ink: #9a6f0e; /* note header, revision text */
 
   /* Canvas */
   --pw-grid-minor: #e4e9f1;

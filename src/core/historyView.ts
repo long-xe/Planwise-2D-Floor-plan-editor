@@ -1,3 +1,4 @@
+import type { Annotation } from './annotations';
 import { type Command, SetAppearanceCommand, TransformCommand } from './commands';
 import type { Doc, ItemIcon, SceneObject } from './document';
 import { findFurniture, findGroup, findLayer, findObject } from './document';
@@ -21,6 +22,7 @@ export type HistoryIcon =
   | 'wall'
   | 'door'
   | 'window'
+  | Annotation['type']
   | ItemIcon;
 
 /** How one history row reads (design 09). */

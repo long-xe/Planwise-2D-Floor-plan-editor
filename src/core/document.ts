@@ -1,3 +1,4 @@
+import type { Annotation } from './annotations';
 import type { Transform } from '../geometry/transform';
 import type { Vec2 } from '../geometry/vec';
 
@@ -104,10 +105,20 @@ export interface Opening {
   swing?: 1 | -1;
 }
 
-export type SceneObject = Furniture | Wall | Opening;
+export type SceneObject = Furniture | Wall | Opening | Annotation;
+
+/** Title block fields (design 10), shown while the Annotations layer is. */
+export interface SheetInfo {
+  project: string;
+  scale: string;
+  drawn: string;
+  rev: number;
+  date: string;
+}
 
 export interface Doc {
   name: string;
+  sheet?: SheetInfo;
   layers: Layer[];
   groups: Group[];
   /** Paint order: later entries draw on top and win hit tests. */

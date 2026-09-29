@@ -10,6 +10,12 @@ import Bolt from './icons/bolt.svg?react';
 import WallIcon from './icons/wall.svg?react';
 import DoorIcon from './icons/door.svg?react';
 import WindowIcon from './icons/window.svg?react';
+import AnnoDim from './icons/anno-dim.svg?react';
+import AnnoArea from './icons/anno-area.svg?react';
+import AnnoCallout from './icons/anno-callout.svg?react';
+import AnnoNote from './icons/anno-note.svg?react';
+import AnnoCloud from './icons/anno-cloud.svg?react';
+import Ruler from './icons/ruler.svg?react';
 
 interface Glyph {
   Svg: FC<SVGProps<SVGSVGElement>>;
@@ -38,6 +44,13 @@ const ITEM_ICON: Record<GlyphKey, Glyph> = {
   wall: { Svg: WallIcon, w: 12, h: 12, size: { width: 11.6, height: 11.6 } },
   door: { Svg: DoorIcon, w: 13, h: 11, size: { width: 13.1, height: 10.9 } },
   window: { Svg: WindowIcon, w: 13, h: 6, size: { width: 13.1, height: 5.6 } },
+  // Annotations layer (design 10).
+  dimension: { Svg: AnnoDim, w: 13, h: 6 },
+  area: { Svg: AnnoArea, w: 11, h: 11 },
+  callout: { Svg: AnnoCallout, w: 11, h: 10 },
+  note: { Svg: AnnoNote, w: 10, h: 11 },
+  revision: { Svg: AnnoCloud, w: 12, h: 8 },
+  measure: { Svg: Ruler, w: 13, h: 13, size: { width: 13, height: 13 } },
 };
 
 /**
